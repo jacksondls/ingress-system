@@ -1,21 +1,14 @@
-# Eventos (frontend)
+# Frontend
 
-App React para explorar e gerenciar shows e filmes (sessões inclusas). Dados mock em `localStorage` até o backend Python.
-
-## Setup
+React + Vite + Bootstrap. Consome a API Django com JWT.
 
 ```bash
 cd frontend
 npm install
+copy .env.example .env
 npm run dev
 ```
 
-Abra a URL do Vite (geralmente `http://localhost:5173`).
+Rotas principais: `/`, `/login`, `/meus-ingressos`, `/portaria`, `/admin`, `/ingresso/:token`.
 
-## Rotas
-
-- `/` — buscar e filtrar eventos
-- `/evento/:id` — detalhe + sessões
-- `/admin` — listar / excluir
-- `/admin/eventos/novo` — criar
-- `/admin/eventos/:id` — editar evento e sessões
+Detalhes e usuários seed: [README raiz](../README.md).
