@@ -1,0 +1,264 @@
+from django.db import transaction
+from django.db.models import Count, F, Q
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from accounts.permissions import IsClient, IsGate, IsOrganizer, IsOrganizerOrReadOnly
+
+from .models import Event, Order, Session, Ticket, generate_ticket_code, sign_ticket_code
+from .serializers import (
+    EventSerializer,
+    GateValidateSerializer,
+    OrderSerializer,
+    PayOrderSerializer,
+    SessionSerializer,
+    TicketSerializer,
+)
+from .tmdb import search_movies
+
+
+class EventViewSet(viewsets.ModelViewSet):
+    serializer_class = EventSerializer
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    permission_classes = [IsOrganizerOrReadOnly]
+
+    def get_queryset(self):
+        qs = Event.objects.annotate(session_count=Count('sessions'))
+        query = self.request.query_params.get('query', '').strip()
+        event_type = self.request.query_params.get('type', 'all').strip()
+
+        if event_type and event_type != 'all':
+            qs = qs.filter(type=event_type)
+        if query:
+            qs = qs.filter(Q(title__icontains=query) | Q(venue__icontains=query))
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(organizer=self.request.user)
+
+    @action(detail=True, methods=['get'], url_path='sessions')
+    def sessions(self, request, pk=None):
+        event = self.get_object()
+        sessions = event.sessions.all()
+        serializer = SessionSerializer(sessions, many=True)
+        return Response(serializer.data)
+
+
+class SessionViewSet(viewsets.ModelViewSet):
+    queryset = Session.objects.select_related('event').all()
+    serializer_class = SessionSerializer
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    permission_classes = [IsOrganizerOrReadOnly]
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderSerializer
+    http_method_names = ['get', 'post', 'head', 'options']
+    permission_classes = [IsAuthenticated, IsClient]
+
+    def get_queryset(self):
+        return Order.objects.filter(client=self.request.user).select_related(
+            'session',
+            'session__event',
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        session = serializer.validated_data['session']
+        quantity = serializer.validated_data['quantity']
+
+        if quantity < 1:
+            return Response(
+                {'detail': 'Quantidade inválida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            locked = Session.objects.select_for_update().get(pk=session.pk)
+            if locked.available < quantity:
+                return Response(
+                    {'detail': 'Ingressos insuficientes.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            order = Order.objects.create(
+                client=request.user,
+                session=locked,
+                quantity=quantity,
+                status=Order.Status.PENDING,
+            )
+
+        return Response(
+            OrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='pay')
+    def pay(self, request, pk=None):
+        order = self.get_object()
+        if order.status != Order.Status.PENDING:
+            return Response(
+                {'detail': 'Pedido não está pendente.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pay_ser = PayOrderSerializer(data=request.data)
+        pay_ser.is_valid(raise_exception=True)
+        approve = pay_ser.validated_data['approve']
+
+        if not approve:
+            order.status = Order.Status.FAILED
+            order.save(update_fields=['status'])
+            return Response(OrderSerializer(order).data)
+
+        with transaction.atomic():
+            locked = Session.objects.select_for_update().get(pk=order.session_id)
+            if locked.available < order.quantity:
+                order.status = Order.Status.FAILED
+                order.save(update_fields=['status'])
+                return Response(
+                    {
+                        'detail': 'Ingressos insuficientes no pagamento.',
+                        'order': OrderSerializer(order).data,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            Session.objects.filter(pk=locked.pk).update(
+                sold=F('sold') + order.quantity,
+            )
+            order.status = Order.Status.PAID
+            order.save(update_fields=['status'])
+
+            tickets = []
+            for _ in range(order.quantity):
+                raw = generate_ticket_code()
+                code = sign_ticket_code(raw)
+                tickets.append(
+                    Ticket(order=order, code=f'{raw}.{code}'),
+                )
+            Ticket.objects.bulk_create(tickets)
+
+        order.refresh_from_db()
+        return Response(OrderSerializer(order).data)
+
+
+class TicketViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = TicketSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    http_method_names = ['get', 'head', 'options']
+
+    def get_queryset(self):
+        return Ticket.objects.filter(
+            order__client=self.request.user,
+            order__status=Order.Status.PAID,
+        ).select_related('order', 'order__session', 'order__session__event')
+
+    @action(detail=False, methods=['get'], url_path='mine')
+    def mine(self, request):
+        qs = self.get_queryset()
+        return Response(TicketSerializer(qs, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def ticket_share(request, token):
+    try:
+        ticket = Ticket.objects.select_related(
+            'order',
+            'order__session',
+            'order__session__event',
+        ).get(share_token=token, order__status=Order.Status.PAID)
+    except Ticket.DoesNotExist:
+        return Response({'detail': 'Ingresso não encontrado.'}, status=404)
+    return Response(TicketSerializer(ticket).data)
+
+
+class GateValidateView(APIView):
+    permission_classes = [IsAuthenticated, IsGate]
+
+    def post(self, request):
+        ser = GateValidateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        code = ser.validated_data['code'].strip()
+        event_id = ser.validated_data['event_id']
+
+        try:
+            ticket = Ticket.objects.select_related(
+                'order',
+                'order__session',
+                'order__session__event',
+            ).get(code=code)
+        except Ticket.DoesNotExist:
+            return Response({'result': 'invalid', 'detail': 'Código inválido.'})
+
+        if not _verify_ticket_code(code):
+            return Response({'result': 'invalid', 'detail': 'Código forjado.'})
+
+        event = ticket.order.session.event
+        if str(event.id) != str(event_id):
+            return Response(
+                {
+                    'result': 'wrong_event',
+                    'detail': 'Ingresso de outro evento.',
+                    'eventTitle': event.title,
+                }
+            )
+
+        if ticket.order.status != Order.Status.PAID:
+            return Response({'result': 'invalid', 'detail': 'Pedido não pago.'})
+
+        if ticket.status == Ticket.Status.USED:
+            return Response(
+                {
+                    'result': 'already_used',
+                    'detail': 'Ingresso já utilizado.',
+                    'usedAt': ticket.used_at,
+                }
+            )
+
+        ticket.status = Ticket.Status.USED
+        ticket.used_at = timezone.now()
+        ticket.save(update_fields=['status', 'used_at'])
+        return Response(
+            {
+                'result': 'valid',
+                'detail': 'Ingresso válido.',
+                'ticket': TicketSerializer(ticket).data,
+            }
+        )
+
+
+def _verify_ticket_code(code: str) -> bool:
+    if '.' not in code:
+        return False
+    raw, signature = code.rsplit('.', 1)
+    expected = sign_ticket_code(raw)
+    return hmac_compare(signature, expected)
+
+
+def hmac_compare(a: str, b: str) -> bool:
+    import hmac as hm
+
+    return hm.compare_digest(a, b)
+
+
+class TmdbSearchView(APIView):
+    permission_classes = [IsAuthenticated, IsOrganizer]
+
+    def get(self, request):
+        query = request.query_params.get('query', '').strip()
+        if not query:
+            return Response({'results': []})
+        try:
+            results = search_movies(query)
+        except Exception as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({'results': results})
