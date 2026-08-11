@@ -1,22 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Modal, Stack, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
-import { deleteEvent, listEvents } from '../api/events'
-import { countSessionsByEventIds } from '../api/sessions'
-import type { Event } from '../types'
+import { deleteEvent, listEvents, type EventWithCount } from '../api/events'
 
 export function AdminListPage() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [events, setEvents] = useState<EventWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
     const data = await listEvents()
-    const sessionCounts = await countSessionsByEventIds(data.map((e) => e.id))
     setEvents(data)
-    setCounts(sessionCounts)
     setLoading(false)
   }
 
@@ -65,7 +60,7 @@ export function AdminListPage() {
                   </Badge>
                 </td>
                 <td>{event.venue}</td>
-                <td>{counts[event.id] ?? 0}</td>
+                <td>{event.sessionCount ?? 0}</td>
                 <td>
                   <Stack direction="horizontal" gap={2}>
                     <Link

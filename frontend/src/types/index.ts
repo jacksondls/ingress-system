@@ -7,7 +7,9 @@ export type Event = {
   description: string
   venue: string
   imageUrl?: string
+  tmdbId?: number | null
   createdAt: string
+  sessionCount?: number
 }
 
 export type Session = {
@@ -17,7 +19,9 @@ export type Session = {
   room?: string
   price: number
   capacity: number
+  sold?: number
+  available?: number
 }
 
-export type EventInput = Omit<Event, 'id' | 'createdAt'>
-export type SessionInput = Omit<Session, 'id'>
+export type EventInput = Omit<Event, 'id' | 'createdAt' | 'sessionCount'>
+export type SessionInput = Omit<Session, 'id' | 'sold' | 'available'>
