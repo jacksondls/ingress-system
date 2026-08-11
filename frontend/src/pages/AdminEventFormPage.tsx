@@ -1,16 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Alert, Button, Form, Spinner } from 'react-bootstrap'
+import {
+  Alert,
+  Button,
+  Form,
+  ListGroup,
+  Spinner,
+  Stack,
+} from 'react-bootstrap'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { createEvent, getEventById, updateEvent } from '../api/events'
+import { searchTmdb, type TmdbMovie } from '../api/orders'
 import { SessionManager } from '../components/SessionManager'
 import type { EventInput, EventType } from '../types'
 
 const empty: EventInput = {
   title: '',
-  type: 'show',
+  type: 'filme',
   description: '',
   venue: '',
   imageUrl: '',
+  tmdbId: null,
 }
 
 export function AdminEventFormPage() {
@@ -24,6 +33,9 @@ export function AdminEventFormPage() {
   const [validated, setValidated] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedId, setSavedId] = useState<string | null>(id ?? null)
+  const [tmdbQuery, setTmdbQuery] = useState('')
+  const [tmdbResults, setTmdbResults] = useState<TmdbMovie[]>([])
+  const [tmdbBusy, setTmdbBusy] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -42,6 +54,7 @@ export function AdminEventFormPage() {
         description: event.description,
         venue: event.venue,
         imageUrl: event.imageUrl ?? '',
+        tmdbId: event.tmdbId ?? null,
       })
       setSavedId(event.id)
       setLoading(false)
@@ -50,6 +63,30 @@ export function AdminEventFormPage() {
       cancelled = true
     }
   }, [id])
+
+  async function handleTmdbSearch() {
+    setTmdbBusy(true)
+    setError(null)
+    try {
+      const results = await searchTmdb(tmdbQuery)
+      setTmdbResults(results)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha TMDb')
+    } finally {
+      setTmdbBusy(false)
+    }
+  }
+
+  function applyTmdb(movie: TmdbMovie) {
+    setForm((f) => ({
+      ...f,
+      type: 'filme',
+      title: movie.title,
+      description: movie.overview || f.description,
+      imageUrl: movie.imageUrl || f.imageUrl,
+      tmdbId: movie.tmdbId,
+    }))
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -70,6 +107,7 @@ export function AdminEventFormPage() {
       description: form.description.trim(),
       venue: form.venue.trim(),
       imageUrl: form.imageUrl?.trim() || undefined,
+      tmdbId: form.tmdbId ?? null,
     }
 
     try {
@@ -80,8 +118,8 @@ export function AdminEventFormPage() {
       } else if (savedId) {
         await updateEvent(savedId, payload)
       }
-    } catch {
-      setError('Não foi possível salvar o evento.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar.')
     } finally {
       setSaving(false)
     }
@@ -96,11 +134,50 @@ export function AdminEventFormPage() {
       <Link to="/admin" className="d-inline-block mb-3">
         ← Voltar
       </Link>
-      <h1 className="h3 mb-3">{isNew && !savedId ? 'Novo evento' : 'Editar evento'}</h1>
+      <h1 className="h3 mb-3">
+        {isNew && !savedId ? 'Novo evento' : 'Editar evento'}
+      </h1>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Form noValidate validated={validated} onSubmit={handleSubmit} className="mb-5">
+      <div className="mb-4 p-3 border rounded">
+        <h2 className="h6">Buscar filme no TMDb</h2>
+        <Stack direction="horizontal" gap={2} className="mb-2">
+          <Form.Control
+            placeholder="Ex.: Duna"
+            value={tmdbQuery}
+            onChange={(e) => setTmdbQuery(e.target.value)}
+          />
+          <Button
+            variant="outline-primary"
+            disabled={tmdbBusy || !tmdbQuery.trim()}
+            onClick={() => void handleTmdbSearch()}
+          >
+            {tmdbBusy ? '...' : 'Buscar'}
+          </Button>
+        </Stack>
+        {tmdbResults.length > 0 && (
+          <ListGroup>
+            {tmdbResults.map((movie) => (
+              <ListGroup.Item
+                key={movie.tmdbId}
+                action
+                onClick={() => applyTmdb(movie)}
+              >
+                <div className="fw-semibold">{movie.title}</div>
+                <small className="text-muted">{movie.releaseDate}</small>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        )}
+      </div>
+
+      <Form
+        noValidate
+        validated={validated}
+        onSubmit={handleSubmit}
+        className="mb-5"
+      >
         <Form.Group className="mb-3" controlId="event-title">
           <Form.Label>Título</Form.Label>
           <Form.Control
@@ -108,9 +185,6 @@ export function AdminEventFormPage() {
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           />
-          <Form.Control.Feedback type="invalid">
-            Informe o título.
-          </Form.Control.Feedback>
         </Form.Group>
 
         <Form.Group className="mb-3" controlId="event-type">
@@ -133,9 +207,6 @@ export function AdminEventFormPage() {
             value={form.venue}
             onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))}
           />
-          <Form.Control.Feedback type="invalid">
-            Informe o local.
-          </Form.Control.Feedback>
         </Form.Group>
 
         <Form.Group className="mb-3" controlId="event-description">
@@ -149,9 +220,6 @@ export function AdminEventFormPage() {
               setForm((f) => ({ ...f, description: e.target.value }))
             }
           />
-          <Form.Control.Feedback type="invalid">
-            Informe a descrição.
-          </Form.Control.Feedback>
         </Form.Group>
 
         <Form.Group className="mb-3" controlId="event-image">
