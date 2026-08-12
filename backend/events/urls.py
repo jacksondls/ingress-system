@@ -7,6 +7,7 @@ from .views import (
     OrderViewSet,
     SessionViewSet,
     TicketViewSet,
+    TicketmasterSearchView,
     TmdbSearchView,
     ticket_share,
 )
@@ -19,6 +20,11 @@ router.register('tickets', TicketViewSet, basename='ticket')
 
 urlpatterns = [
     path('tmdb/search/', TmdbSearchView.as_view(), name='tmdb-search'),
+    path(
+        'ticketmaster/search/',
+        TicketmasterSearchView.as_view(),
+        name='ticketmaster-search',
+    ),
     path('gate/validate/', GateValidateView.as_view(), name='gate-validate'),
     path('tickets/share/<str:token>/', ticket_share, name='ticket-share'),
     path('', include(router.urls)),

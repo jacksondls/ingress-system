@@ -29,7 +29,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Edite `backend/.env` e preencha `TMDB_API_KEY` se for usar a busca de filmes.
+Edite `backend/.env` e preencha `TMDB_API_KEY` / `TICKETMASTER_API_KEY` conforme for usar as buscas externas.
 
 ```bash
 python manage.py migrate
@@ -59,7 +59,7 @@ App: http://localhost:5173
 | cliente2 | cliente123 | Cliente |
 | portaria | portaria123 | Portaria |
 
-Há eventos seed com sessões e capacidade disponível.
+Há eventos seed com sessões: show em **pista** e filme com **mapa de assentos** (5×8).
 
 ## Fluxo de teste sugerido
 
@@ -87,10 +87,9 @@ Há eventos seed com sessões e capacidade disponível.
 
 ## Limitações atuais
 
-- Reserva apenas por **quantidade** (sem mapa de assentos).
-- Apenas **TMDb** (sem Ticketmaster).
 - Pagamento 100% simulado (botões aprovar/recusar).
 - Deploy ainda não publicado.
+- Ticketmaster exige `TICKETMASTER_API_KEY` no `.env`.
 
 ## Docs extras
 

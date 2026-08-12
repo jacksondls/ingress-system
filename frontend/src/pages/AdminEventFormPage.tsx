@@ -9,7 +9,12 @@ import {
 } from 'react-bootstrap'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { createEvent, getEventById, updateEvent } from '../api/events'
-import { searchTmdb, type TmdbMovie } from '../api/orders'
+import {
+  searchTicketmaster,
+  searchTmdb,
+  type TicketmasterAttraction,
+  type TmdbMovie,
+} from '../api/orders'
 import { SessionManager } from '../components/SessionManager'
 import type { EventInput, EventType } from '../types'
 
@@ -20,6 +25,7 @@ const empty: EventInput = {
   venue: '',
   imageUrl: '',
   tmdbId: null,
+  ticketmasterId: '',
 }
 
 export function AdminEventFormPage() {
@@ -36,6 +42,9 @@ export function AdminEventFormPage() {
   const [tmdbQuery, setTmdbQuery] = useState('')
   const [tmdbResults, setTmdbResults] = useState<TmdbMovie[]>([])
   const [tmdbBusy, setTmdbBusy] = useState(false)
+  const [tmQuery, setTmQuery] = useState('')
+  const [tmResults, setTmResults] = useState<TicketmasterAttraction[]>([])
+  const [tmBusy, setTmBusy] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -55,6 +64,7 @@ export function AdminEventFormPage() {
         venue: event.venue,
         imageUrl: event.imageUrl ?? '',
         tmdbId: event.tmdbId ?? null,
+        ticketmasterId: event.ticketmasterId ?? '',
       })
       setSavedId(event.id)
       setLoading(false)
@@ -85,6 +95,32 @@ export function AdminEventFormPage() {
       description: movie.overview || f.description,
       imageUrl: movie.imageUrl || f.imageUrl,
       tmdbId: movie.tmdbId,
+      ticketmasterId: '',
+    }))
+  }
+
+  async function handleTmSearch() {
+    setTmBusy(true)
+    setError(null)
+    try {
+      const results = await searchTicketmaster(tmQuery)
+      setTmResults(results)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha Ticketmaster')
+    } finally {
+      setTmBusy(false)
+    }
+  }
+
+  function applyTicketmaster(item: TicketmasterAttraction) {
+    setForm((f) => ({
+      ...f,
+      type: 'show',
+      title: item.title,
+      description: item.overview || f.description,
+      imageUrl: item.imageUrl || f.imageUrl,
+      ticketmasterId: item.ticketmasterId,
+      tmdbId: null,
     }))
   }
 
@@ -108,6 +144,7 @@ export function AdminEventFormPage() {
       venue: form.venue.trim(),
       imageUrl: form.imageUrl?.trim() || undefined,
       tmdbId: form.tmdbId ?? null,
+      ticketmasterId: form.ticketmasterId?.trim() || undefined,
     }
 
     try {
@@ -166,6 +203,38 @@ export function AdminEventFormPage() {
               >
                 <div className="fw-semibold">{movie.title}</div>
                 <small className="text-muted">{movie.releaseDate}</small>
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        )}
+      </div>
+
+      <div className="mb-4 p-3 border rounded">
+        <h2 className="h6">Buscar show no Ticketmaster</h2>
+        <Stack direction="horizontal" gap={2} className="mb-2">
+          <Form.Control
+            placeholder="Ex.: Arctic Monkeys"
+            value={tmQuery}
+            onChange={(e) => setTmQuery(e.target.value)}
+          />
+          <Button
+            variant="outline-primary"
+            disabled={tmBusy || !tmQuery.trim()}
+            onClick={() => void handleTmSearch()}
+          >
+            {tmBusy ? '...' : 'Buscar'}
+          </Button>
+        </Stack>
+        {tmResults.length > 0 && (
+          <ListGroup>
+            {tmResults.map((item) => (
+              <ListGroup.Item
+                key={item.ticketmasterId}
+                action
+                onClick={() => applyTicketmaster(item)}
+              >
+                <div className="fw-semibold">{item.title}</div>
+                <small className="text-muted">{item.overview}</small>
               </ListGroup.Item>
             ))}
           </ListGroup>
