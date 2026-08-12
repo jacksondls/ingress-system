@@ -4,10 +4,11 @@ from django.utils.dateparse import parse_datetime
 
 from accounts.models import Profile
 from events.models import Event, Session
+from events.views import generate_seats_for_session
 
 
 USERS = [
-    ('organizador', 'organizer123', 'organizer'),
+    ('organizador', 'organizador123', 'organizer'),
     ('cliente1', 'cliente123', 'client'),
     ('cliente2', 'cliente123', 'client'),
     ('portaria', 'portaria123', 'gate'),
@@ -38,6 +39,9 @@ SEED_SESSIONS = [
         'room': 'Pista',
         'price': '280.00',
         'capacity': 500,
+        'seating_mode': 'quantity',
+        'seat_rows': 0,
+        'seat_cols': 0,
     },
     {
         'id': 'cccccccc-cccc-cccc-cccc-cccccccccccc',
@@ -45,7 +49,10 @@ SEED_SESSIONS = [
         'datetime': '2026-08-20T19:30:00+00:00',
         'room': 'Sala 3',
         'price': '48.00',
-        'capacity': 180,
+        'capacity': 40,
+        'seating_mode': 'seats',
+        'seat_rows': 5,
+        'seat_cols': 8,
     },
 ]
 
@@ -84,7 +91,7 @@ class Command(BaseCommand):
             )
 
         for data in SEED_SESSIONS:
-            Session.objects.update_or_create(
+            session, _ = Session.objects.update_or_create(
                 id=data['id'],
                 defaults={
                     'event_id': data['event_id'],
@@ -92,7 +99,13 @@ class Command(BaseCommand):
                     'room': data['room'],
                     'price': data['price'],
                     'capacity': data['capacity'],
+                    'seating_mode': data['seating_mode'],
+                    'seat_rows': data['seat_rows'],
+                    'seat_cols': data['seat_cols'],
                 },
             )
+            if session.seating_mode == Session.SeatingMode.SEATS:
+                if not session.seats.exists():
+                    generate_seats_for_session(session)
 
         self.stdout.write(self.style.SUCCESS('Seed concluído.'))

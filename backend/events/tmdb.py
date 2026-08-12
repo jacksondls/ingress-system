@@ -1,13 +1,12 @@
-import os
-
 import requests
+from django.conf import settings
 
 
 TMDB_BASE = 'https://api.themoviedb.org/3'
 
 
 def search_movies(query: str, language: str = 'pt-BR'):
-    api_key = os.getenv('TMDB_API_KEY', '').strip()
+    api_key = (getattr(settings, 'TMDB_API_KEY', None) or '').strip()
     if not api_key:
         raise RuntimeError(
             'TMDB_API_KEY não configurada. Defina no arquivo backend/.env'

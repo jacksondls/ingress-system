@@ -5,7 +5,7 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env', override=True)
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-insecure')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
@@ -123,3 +123,4 @@ SIMPLE_JWT = {
 }
 
 TMDB_API_KEY = os.getenv('TMDB_API_KEY', '')
+TICKETMASTER_API_KEY = os.getenv('TICKETMASTER_API_KEY', '')
