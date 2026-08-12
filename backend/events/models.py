@@ -20,6 +20,7 @@ class Event(models.Model):
     venue = models.CharField(max_length=255)
     image_url = models.URLField(blank=True, max_length=500)
     tmdb_id = models.PositiveIntegerField(null=True, blank=True)
+    ticketmaster_id = models.CharField(max_length=64, blank=True)
     organizer = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -37,6 +38,10 @@ class Event(models.Model):
 
 
 class Session(models.Model):
+    class SeatingMode(models.TextChoices):
+        QUANTITY = 'quantity', 'Pista / quantidade'
+        SEATS = 'seats', 'Mapa de assentos'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
         Event,
@@ -48,12 +53,21 @@ class Session(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     capacity = models.PositiveIntegerField()
     sold = models.PositiveIntegerField(default=0)
+    seating_mode = models.CharField(
+        max_length=20,
+        choices=SeatingMode.choices,
+        default=SeatingMode.QUANTITY,
+    )
+    seat_rows = models.PositiveSmallIntegerField(default=0)
+    seat_cols = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ['datetime']
 
     @property
     def available(self):
+        if self.seating_mode == self.SeatingMode.SEATS:
+            return self.seats.filter(status=Seat.Status.AVAILABLE).count()
         return max(self.capacity - self.sold, 0)
 
     def __str__(self):
@@ -90,6 +104,42 @@ class Order(models.Model):
         ordering = ['-created_at']
 
 
+class Seat(models.Model):
+    class Status(models.TextChoices):
+        AVAILABLE = 'available', 'Disponível'
+        HELD = 'held', 'Reservado'
+        SOLD = 'sold', 'Vendido'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        related_name='seats',
+    )
+    row = models.CharField(max_length=4)
+    number = models.PositiveSmallIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.AVAILABLE,
+    )
+    held_order = models.ForeignKey(
+        Order,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='held_seats',
+    )
+
+    class Meta:
+        ordering = ['row', 'number']
+        unique_together = ('session', 'row', 'number')
+
+    @property
+    def label(self):
+        return f'{self.row}{self.number}'
+
+
 def generate_ticket_code():
     return secrets.token_urlsafe(16)
 
@@ -112,6 +162,13 @@ class Ticket(models.Model):
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
+        related_name='tickets',
+    )
+    seat = models.ForeignKey(
+        Seat,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='tickets',
     )
     code = models.CharField(max_length=64, unique=True, db_index=True)

@@ -32,6 +32,7 @@ export function MyTicketsPage() {
                 <p className="mb-1 text-muted">{ticket.venue}</p>
                 <p className="mb-2">
                   {new Date(ticket.sessionDatetime).toLocaleString('pt-BR')}
+                  {ticket.seatLabel ? ` · Assento ${ticket.seatLabel}` : ''}
                 </p>
                 <p className="small mb-2">
                   Status: <strong>{ticket.status}</strong>

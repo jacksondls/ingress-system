@@ -21,12 +21,21 @@ export type Ticket = {
   eventTitle: string
   sessionDatetime: string
   venue: string
+  seatLabel?: string | null
 }
 
-export async function createOrder(sessionId: string, quantity: number) {
+export async function createOrder(
+  sessionId: string,
+  quantity: number,
+  seatIds?: string[],
+) {
   return request<Order>('/orders/', {
     method: 'POST',
-    body: JSON.stringify({ sessionId, quantity }),
+    body: JSON.stringify({
+      sessionId,
+      quantity,
+      seatIds: seatIds ?? [],
+    }),
   })
 }
 
@@ -66,9 +75,24 @@ export type TmdbMovie = {
   releaseDate: string
 }
 
+export type TicketmasterAttraction = {
+  ticketmasterId: string
+  title: string
+  overview: string
+  imageUrl: string
+  url: string
+}
+
 export async function searchTmdb(query: string) {
   const data = await request<{ results: TmdbMovie[] }>(
     `/tmdb/search/?query=${encodeURIComponent(query)}`,
+  )
+  return data.results
+}
+
+export async function searchTicketmaster(query: string) {
+  const data = await request<{ results: TicketmasterAttraction[] }>(
+    `/ticketmaster/search/?query=${encodeURIComponent(query)}`,
   )
   return data.results
 }

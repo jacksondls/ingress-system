@@ -7,7 +7,7 @@ import {
   Table,
 } from 'react-bootstrap'
 import * as sessionsApi from '../api/sessions'
-import type { Session, SessionInput } from '../types'
+import type { SeatingMode, Session, SessionInput } from '../types'
 
 type Props = {
   eventId: string
@@ -19,6 +19,9 @@ const emptyForm = {
   room: '',
   price: '',
   capacity: '',
+  seatingMode: 'quantity' as SeatingMode,
+  seatRows: '5',
+  seatCols: '8',
 }
 
 function formatDateTime(iso: string) {
@@ -69,6 +72,9 @@ export function SessionManager({ eventId, editable = false }: Props) {
       room: session.room ?? '',
       price: String(session.price),
       capacity: String(session.capacity),
+      seatingMode: session.seatingMode ?? 'quantity',
+      seatRows: String(session.seatRows || 5),
+      seatCols: String(session.seatCols || 8),
     })
     setValidated(false)
     setShowModal(true)
@@ -78,12 +84,19 @@ export function SessionManager({ eventId, editable = false }: Props) {
     e.preventDefault()
     const price = Number(form.price)
     const capacity = Number(form.capacity)
+    const seatRows = Number(form.seatRows)
+    const seatCols = Number(form.seatCols)
+    const isSeats = form.seatingMode === 'seats'
     const valid =
       form.datetime &&
       !Number.isNaN(price) &&
       price >= 0 &&
-      Number.isInteger(capacity) &&
-      capacity > 0
+      (isSeats
+        ? Number.isInteger(seatRows) &&
+          seatRows > 0 &&
+          Number.isInteger(seatCols) &&
+          seatCols > 0
+        : Number.isInteger(capacity) && capacity > 0)
 
     setValidated(true)
     if (!valid) return
@@ -93,7 +106,10 @@ export function SessionManager({ eventId, editable = false }: Props) {
       datetime: new Date(form.datetime).toISOString(),
       room: form.room.trim() || undefined,
       price,
-      capacity,
+      capacity: isSeats ? seatRows * seatCols : capacity,
+      seatingMode: form.seatingMode,
+      seatRows: isSeats ? seatRows : 0,
+      seatCols: isSeats ? seatCols : 0,
     }
 
     if (editing) {
@@ -134,6 +150,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
             <tr>
               <th>Data/hora</th>
               <th>Sala</th>
+              <th>Modo</th>
               <th>Preço</th>
               <th>Vagas</th>
               {editable && <th>Ações</th>}
@@ -144,6 +161,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
               <tr key={session.id}>
                 <td>{formatDateTime(session.datetime)}</td>
                 <td>{session.room || '—'}</td>
+                <td>{session.seatingMode === 'seats' ? 'Assentos' : 'Pista'}</td>
                 <td>{formatPrice(session.price)}</td>
                 <td>{session.capacity}</td>
                 {editable && (
@@ -190,9 +208,6 @@ export function SessionManager({ eventId, editable = false }: Props) {
                   setForm((f) => ({ ...f, datetime: e.target.value }))
                 }
               />
-              <Form.Control.Feedback type="invalid">
-                Informe a data e hora.
-              </Form.Control.Feedback>
             </Form.Group>
             <Form.Group className="mb-3" controlId="session-room">
               <Form.Label>Sala (opcional)</Form.Label>
@@ -202,6 +217,22 @@ export function SessionManager({ eventId, editable = false }: Props) {
                   setForm((f) => ({ ...f, room: e.target.value }))
                 }
               />
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="session-mode">
+              <Form.Label>Modo de venda</Form.Label>
+              <Form.Select
+                value={form.seatingMode}
+                disabled={!!editing}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    seatingMode: e.target.value as SeatingMode,
+                  }))
+                }
+              >
+                <option value="quantity">Pista / quantidade</option>
+                <option value="seats">Mapa de assentos</option>
+              </Form.Select>
             </Form.Group>
             <Form.Group className="mb-3" controlId="session-price">
               <Form.Label>Preço</Form.Label>
@@ -215,26 +246,51 @@ export function SessionManager({ eventId, editable = false }: Props) {
                   setForm((f) => ({ ...f, price: e.target.value }))
                 }
               />
-              <Form.Control.Feedback type="invalid">
-                Informe um preço válido.
-              </Form.Control.Feedback>
             </Form.Group>
-            <Form.Group className="mb-3" controlId="session-capacity">
-              <Form.Label>Capacidade</Form.Label>
-              <Form.Control
-                type="number"
-                min={1}
-                step={1}
-                required
-                value={form.capacity}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, capacity: e.target.value }))
-                }
-              />
-              <Form.Control.Feedback type="invalid">
-                Informe a capacidade.
-              </Form.Control.Feedback>
-            </Form.Group>
+            {form.seatingMode === 'seats' ? (
+              <Stack direction="horizontal" gap={2}>
+                <Form.Group className="mb-3" controlId="session-rows">
+                  <Form.Label>Fileiras</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    required
+                    disabled={!!editing}
+                    value={form.seatRows}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, seatRows: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3" controlId="session-cols">
+                  <Form.Label>Assentos/fileira</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    required
+                    disabled={!!editing}
+                    value={form.seatCols}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, seatCols: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+              </Stack>
+            ) : (
+              <Form.Group className="mb-3" controlId="session-capacity">
+                <Form.Label>Capacidade</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={1}
+                  step={1}
+                  required
+                  value={form.capacity}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, capacity: e.target.value }))
+                  }
+                />
+              </Form.Group>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>

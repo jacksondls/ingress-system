@@ -1,8 +1,12 @@
-import type { Session, SessionInput } from '../types'
+import type { Seat, Session, SessionInput } from '../types'
 import { request } from './client'
 
 export async function listSessionsByEvent(eventId: string): Promise<Session[]> {
   return request<Session[]>(`/events/${eventId}/sessions/`)
+}
+
+export async function listSeats(sessionId: string): Promise<Seat[]> {
+  return request<Seat[]>(`/sessions/${sessionId}/seats/`)
 }
 
 export async function createSession(input: SessionInput): Promise<Session> {

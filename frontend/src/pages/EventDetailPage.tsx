@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Alert, Badge, Button, Form, Spinner, Table } from 'react-bootstrap'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getEventById } from '../api/events'
-import { listSessionsByEvent } from '../api/sessions'
 import { createOrder } from '../api/orders'
+import { listSeats, listSessionsByEvent } from '../api/sessions'
 import { useAuth } from '../auth/AuthContext'
-import type { Event, Session } from '../types'
+import { SeatMap } from '../components/SeatMap'
+import type { Event, Seat, Session } from '../types'
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -28,6 +29,10 @@ export function EventDetailPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
   const [buyingId, setBuyingId] = useState<string | null>(null)
+  const [seatSessionId, setSeatSessionId] = useState<string | null>(null)
+  const [seats, setSeats] = useState<Seat[]>([])
+  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
+  const [seatsLoading, setSeatsLoading] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -46,7 +51,30 @@ export function EventDetailPage() {
     }
   }, [id])
 
-  async function buy(session: Session) {
+  async function openSeatMap(session: Session) {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    if (user.role !== 'client') {
+      setError('Apenas clientes podem comprar ingressos.')
+      return
+    }
+    setSeatSessionId(session.id)
+    setSelectedSeatIds([])
+    setSeatsLoading(true)
+    setError(null)
+    try {
+      setSeats(await listSeats(session.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao carregar assentos')
+      setSeatSessionId(null)
+    } finally {
+      setSeatsLoading(false)
+    }
+  }
+
+  async function buyQuantity(session: Session) {
     if (!user) {
       navigate('/login')
       return
@@ -68,6 +96,30 @@ export function EventDetailPage() {
     }
   }
 
+  async function buySeats() {
+    if (!seatSessionId || selectedSeatIds.length === 0) return
+    setBuyingId(seatSessionId)
+    setError(null)
+    try {
+      const order = await createOrder(
+        seatSessionId,
+        selectedSeatIds.length,
+        selectedSeatIds,
+      )
+      navigate(`/checkout/${order.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha na reserva')
+    } finally {
+      setBuyingId(null)
+    }
+  }
+
+  function toggleSeat(seatId: string) {
+    setSelectedSeatIds((ids) =>
+      ids.includes(seatId) ? ids.filter((id) => id !== seatId) : [...ids, seatId],
+    )
+  }
+
   if (loading) return <Spinner animation="border" size="sm" />
   if (!event) {
     return (
@@ -77,6 +129,8 @@ export function EventDetailPage() {
       </>
     )
   }
+
+  const seatSession = sessions.find((s) => s.id === seatSessionId)
 
   return (
     <>
@@ -111,6 +165,7 @@ export function EventDetailPage() {
             <tr>
               <th>Data/hora</th>
               <th>Sala</th>
+              <th>Modo</th>
               <th>Preço</th>
               <th>Disponíveis</th>
               <th>Qtd</th>
@@ -118,42 +173,87 @@ export function EventDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session) => (
-              <tr key={session.id}>
-                <td>{formatDateTime(session.datetime)}</td>
-                <td>{session.room || '—'}</td>
-                <td>{formatPrice(session.price)}</td>
-                <td>{session.available ?? session.capacity}</td>
-                <td style={{ maxWidth: 90 }}>
-                  <Form.Control
-                    type="number"
-                    min={1}
-                    max={session.available ?? session.capacity}
-                    value={quantities[session.id] ?? 1}
-                    onChange={(e) =>
-                      setQuantities((q) => ({
-                        ...q,
-                        [session.id]: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </td>
-                <td>
-                  <Button
-                    size="sm"
-                    disabled={
-                      buyingId === session.id ||
-                      (session.available ?? 0) < 1
-                    }
-                    onClick={() => void buy(session)}
-                  >
-                    {buyingId === session.id ? '...' : 'Reservar'}
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {sessions.map((session) => {
+              const isSeats = session.seatingMode === 'seats'
+              return (
+                <tr key={session.id}>
+                  <td>{formatDateTime(session.datetime)}</td>
+                  <td>{session.room || '—'}</td>
+                  <td>{isSeats ? 'Assentos' : 'Pista'}</td>
+                  <td>{formatPrice(session.price)}</td>
+                  <td>{session.available ?? session.capacity}</td>
+                  <td style={{ maxWidth: 90 }}>
+                    {isSeats ? (
+                      '—'
+                    ) : (
+                      <Form.Control
+                        type="number"
+                        min={1}
+                        max={session.available ?? session.capacity}
+                        value={quantities[session.id] ?? 1}
+                        onChange={(e) =>
+                          setQuantities((q) => ({
+                            ...q,
+                            [session.id]: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    )}
+                  </td>
+                  <td>
+                    <Button
+                      size="sm"
+                      disabled={
+                        buyingId === session.id || (session.available ?? 0) < 1
+                      }
+                      onClick={() =>
+                        void (isSeats ? openSeatMap(session) : buyQuantity(session))
+                      }
+                    >
+                      {isSeats ? 'Escolher assentos' : buyingId === session.id ? '...' : 'Reservar'}
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </Table>
+      )}
+
+      {seatSessionId && (
+        <div className="border rounded p-3 mt-4">
+          <h3 className="h6">
+            Mapa — {seatSession ? formatDateTime(seatSession.datetime) : ''}
+          </h3>
+          {seatsLoading ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <SeatMap
+                seats={seats}
+                selectedIds={selectedSeatIds}
+                onToggle={toggleSeat}
+              />
+              <div className="d-flex gap-2">
+                <Button
+                  disabled={selectedSeatIds.length === 0 || buyingId === seatSessionId}
+                  onClick={() => void buySeats()}
+                >
+                  Reservar {selectedSeatIds.length || ''} assento(s)
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => {
+                    setSeatSessionId(null)
+                    setSelectedSeatIds([])
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </>
   )

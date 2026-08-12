@@ -1,4 +1,6 @@
 export type EventType = 'show' | 'filme'
+export type SeatingMode = 'quantity' | 'seats'
+export type SeatStatus = 'available' | 'held' | 'sold'
 
 export type Event = {
   id: string
@@ -8,6 +10,7 @@ export type Event = {
   venue: string
   imageUrl?: string
   tmdbId?: number | null
+  ticketmasterId?: string
   createdAt: string
   sessionCount?: number
 }
@@ -21,6 +24,17 @@ export type Session = {
   capacity: number
   sold?: number
   available?: number
+  seatingMode?: SeatingMode
+  seatRows?: number
+  seatCols?: number
+}
+
+export type Seat = {
+  id: string
+  row: string
+  number: number
+  label: string
+  status: SeatStatus
 }
 
 export type EventInput = Omit<Event, 'id' | 'createdAt' | 'sessionCount'>

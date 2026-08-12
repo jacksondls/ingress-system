@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Event, Order, Session, Ticket
+from .models import Event, Order, Seat, Session, Ticket
 
 
 class SessionInline(admin.TabularInline):
@@ -18,7 +18,21 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
-    list_display = ('event', 'datetime', 'room', 'price', 'capacity', 'sold')
+    list_display = (
+        'event',
+        'datetime',
+        'room',
+        'price',
+        'capacity',
+        'sold',
+        'seating_mode',
+    )
+
+
+@admin.register(Seat)
+class SeatAdmin(admin.ModelAdmin):
+    list_display = ('session', 'row', 'number', 'status')
+    list_filter = ('status',)
 
 
 @admin.register(Order)
@@ -29,5 +43,5 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ('code', 'order', 'status', 'used_at')
+    list_display = ('code', 'order', 'seat', 'status', 'used_at')
     list_filter = ('status',)

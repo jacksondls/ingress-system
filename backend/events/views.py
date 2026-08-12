@@ -9,16 +9,44 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsGate, IsOrganizer, IsOrganizerOrReadOnly
 
-from .models import Event, Order, Session, Ticket, generate_ticket_code, sign_ticket_code
+from .models import (
+    Event,
+    Order,
+    Seat,
+    Session,
+    Ticket,
+    generate_ticket_code,
+    sign_ticket_code,
+)
 from .serializers import (
     EventSerializer,
     GateValidateSerializer,
     OrderSerializer,
     PayOrderSerializer,
+    SeatSerializer,
     SessionSerializer,
     TicketSerializer,
 )
+from .ticketmaster import search_attractions
 from .tmdb import search_movies
+
+
+def generate_seats_for_session(session: Session) -> None:
+    seats = []
+    for r in range(session.seat_rows):
+        row_label = chr(ord('A') + r)
+        for n in range(1, session.seat_cols + 1):
+            seats.append(
+                Seat(session=session, row=row_label, number=n),
+            )
+    Seat.objects.bulk_create(seats)
+
+
+def release_held_seats(order: Order) -> None:
+    Seat.objects.filter(held_order=order, status=Seat.Status.HELD).update(
+        status=Seat.Status.AVAILABLE,
+        held_order=None,
+    )
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -54,6 +82,17 @@ class SessionViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     permission_classes = [IsOrganizerOrReadOnly]
 
+    def perform_create(self, serializer):
+        session = serializer.save()
+        if session.seating_mode == Session.SeatingMode.SEATS:
+            generate_seats_for_session(session)
+
+    @action(detail=True, methods=['get'], url_path='seats')
+    def seats(self, request, pk=None):
+        session = self.get_object()
+        seats = session.seats.all()
+        return Response(SeatSerializer(seats, many=True).data)
+
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
@@ -64,33 +103,71 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Order.objects.filter(client=self.request.user).select_related(
             'session',
             'session__event',
-        )
+        ).prefetch_related('held_seats', 'tickets__seat')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         session = serializer.validated_data['session']
-        quantity = serializer.validated_data['quantity']
-
-        if quantity < 1:
-            return Response(
-                {'detail': 'Quantidade inválida.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        seat_ids = serializer.validated_data.get('seat_ids') or []
+        quantity = request.data.get('quantity')
 
         with transaction.atomic():
             locked = Session.objects.select_for_update().get(pk=session.pk)
-            if locked.available < quantity:
-                return Response(
-                    {'detail': 'Ingressos insuficientes.'},
-                    status=status.HTTP_400_BAD_REQUEST,
+
+            if locked.seating_mode == Session.SeatingMode.SEATS:
+                if not seat_ids:
+                    return Response(
+                        {'detail': 'Selecione ao menos um assento.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                seats = list(
+                    Seat.objects.select_for_update().filter(
+                        session=locked,
+                        id__in=seat_ids,
+                    )
                 )
-            order = Order.objects.create(
-                client=request.user,
-                session=locked,
-                quantity=quantity,
-                status=Order.Status.PENDING,
-            )
+                if len(seats) != len(set(str(sid) for sid in seat_ids)):
+                    return Response(
+                        {'detail': 'Um ou mais assentos são inválidos.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if any(s.status != Seat.Status.AVAILABLE for s in seats):
+                    return Response(
+                        {'detail': 'Assento indisponível.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                order = Order.objects.create(
+                    client=request.user,
+                    session=locked,
+                    quantity=len(seats),
+                    status=Order.Status.PENDING,
+                )
+                for seat in seats:
+                    seat.status = Seat.Status.HELD
+                    seat.held_order = order
+                Seat.objects.bulk_update(seats, ['status', 'held_order'])
+            else:
+                try:
+                    qty = int(quantity)
+                except (TypeError, ValueError):
+                    qty = 0
+                if qty < 1:
+                    return Response(
+                        {'detail': 'Quantidade inválida.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if locked.available < qty:
+                    return Response(
+                        {'detail': 'Ingressos insuficientes.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                order = Order.objects.create(
+                    client=request.user,
+                    session=locked,
+                    quantity=qty,
+                    status=Order.Status.PENDING,
+                )
 
         return Response(
             OrderSerializer(order).data,
@@ -111,37 +188,67 @@ class OrderViewSet(viewsets.ModelViewSet):
         approve = pay_ser.validated_data['approve']
 
         if not approve:
-            order.status = Order.Status.FAILED
-            order.save(update_fields=['status'])
+            with transaction.atomic():
+                release_held_seats(order)
+                order.status = Order.Status.FAILED
+                order.save(update_fields=['status'])
             return Response(OrderSerializer(order).data)
 
         with transaction.atomic():
             locked = Session.objects.select_for_update().get(pk=order.session_id)
-            if locked.available < order.quantity:
-                order.status = Order.Status.FAILED
+
+            if locked.seating_mode == Session.SeatingMode.SEATS:
+                seats = list(
+                    Seat.objects.select_for_update().filter(held_order=order)
+                )
+                if len(seats) != order.quantity:
+                    release_held_seats(order)
+                    order.status = Order.Status.FAILED
+                    order.save(update_fields=['status'])
+                    return Response(
+                        {'detail': 'Assentos da reserva inválidos.', 'order': OrderSerializer(order).data},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                for seat in seats:
+                    seat.status = Seat.Status.SOLD
+                Seat.objects.bulk_update(seats, ['status'])
+                Session.objects.filter(pk=locked.pk).update(
+                    sold=F('sold') + order.quantity,
+                )
+                order.status = Order.Status.PAID
                 order.save(update_fields=['status'])
-                return Response(
-                    {
-                        'detail': 'Ingressos insuficientes no pagamento.',
-                        'order': OrderSerializer(order).data,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                tickets = []
+                for seat in seats:
+                    raw = generate_ticket_code()
+                    code = sign_ticket_code(raw)
+                    tickets.append(
+                        Ticket(order=order, seat=seat, code=f'{raw}.{code}'),
+                    )
+                Ticket.objects.bulk_create(tickets)
+            else:
+                if locked.available < order.quantity:
+                    order.status = Order.Status.FAILED
+                    order.save(update_fields=['status'])
+                    return Response(
+                        {
+                            'detail': 'Ingressos insuficientes no pagamento.',
+                            'order': OrderSerializer(order).data,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                Session.objects.filter(pk=locked.pk).update(
+                    sold=F('sold') + order.quantity,
                 )
-
-            Session.objects.filter(pk=locked.pk).update(
-                sold=F('sold') + order.quantity,
-            )
-            order.status = Order.Status.PAID
-            order.save(update_fields=['status'])
-
-            tickets = []
-            for _ in range(order.quantity):
-                raw = generate_ticket_code()
-                code = sign_ticket_code(raw)
-                tickets.append(
-                    Ticket(order=order, code=f'{raw}.{code}'),
-                )
-            Ticket.objects.bulk_create(tickets)
+                order.status = Order.Status.PAID
+                order.save(update_fields=['status'])
+                tickets = []
+                for _ in range(order.quantity):
+                    raw = generate_ticket_code()
+                    code = sign_ticket_code(raw)
+                    tickets.append(
+                        Ticket(order=order, code=f'{raw}.{code}'),
+                    )
+                Ticket.objects.bulk_create(tickets)
 
         order.refresh_from_db()
         return Response(OrderSerializer(order).data)
@@ -156,7 +263,12 @@ class TicketViewSet(viewsets.ReadOnlyModelViewSet):
         return Ticket.objects.filter(
             order__client=self.request.user,
             order__status=Order.Status.PAID,
-        ).select_related('order', 'order__session', 'order__session__event')
+        ).select_related(
+            'order',
+            'order__session',
+            'order__session__event',
+            'seat',
+        )
 
     @action(detail=False, methods=['get'], url_path='mine')
     def mine(self, request):
@@ -172,6 +284,7 @@ def ticket_share(request, token):
             'order',
             'order__session',
             'order__session__event',
+            'seat',
         ).get(share_token=token, order__status=Order.Status.PAID)
     except Ticket.DoesNotExist:
         return Response({'detail': 'Ingresso não encontrado.'}, status=404)
@@ -192,6 +305,7 @@ class GateValidateView(APIView):
                 'order',
                 'order__session',
                 'order__session__event',
+                'seat',
             ).get(code=code)
         except Ticket.DoesNotExist:
             return Response({'result': 'invalid', 'detail': 'Código inválido.'})
@@ -256,6 +370,23 @@ class TmdbSearchView(APIView):
             return Response({'results': []})
         try:
             results = search_movies(query)
+        except Exception as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({'results': results})
+
+
+class TicketmasterSearchView(APIView):
+    permission_classes = [IsAuthenticated, IsOrganizer]
+
+    def get(self, request):
+        query = request.query_params.get('query', '').strip()
+        if not query:
+            return Response({'results': []})
+        try:
+            results = search_attractions(query)
         except Exception as exc:
             return Response(
                 {'detail': str(exc)},
