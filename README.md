@@ -2,6 +2,13 @@
 
 Plataforma de eventos e ingressos (Desafio Elite Dev): organizar eventos (TMDb / Ticketmaster), comprar por quantidade ou mapa de assentos, pagamento simulado, QR e validação na portaria.
 
+**Demo**
+
+- App: https://frontend-gold-one-25.vercel.app
+- API: https://ingresso-api-e0vz.onrender.com
+- Login: `cliente1` / `cliente123` (estado **SP** na navbar)
+- O primeiro acesso à API pode levar ~1 min (Render free)
+
 ## Pré-requisitos
 
 - Docker Desktop
@@ -62,8 +69,6 @@ npm run dev
 ```
 
 App: http://localhost:5173
-
-Em produção, `VITE_API_URL` aponta para a API pública (ex.: `https://<api>/api`).
 
 ## Usuários de teste (seed)
 
@@ -127,7 +132,6 @@ Front na [Vercel](https://vercel.com) e API no [Render](https://render.com) (web
 
 1. **Render** — Blueprint já aplicado (`ingresso-api` + `ingresso-db`, plano Free; Postgres expira em 30 dias).
 2. **Vercel** — root `frontend`, env `VITE_API_URL=https://ingresso-api-e0vz.onrender.com/api`.
-3. Depois, restrinja `CORS_ALLOWED_ORIGINS` à URL da Vercel (o Blueprint inicia com `CORS_ALLOW_ALL=true`).
 
 URLs:
 
