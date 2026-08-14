@@ -18,23 +18,31 @@ export function ShareTicketPage() {
       .finally(() => setLoading(false))
   }, [token])
 
-  if (loading) return <Spinner animation="border" size="sm" />
+  if (loading) {
+    return (
+      <div className="page-spinner">
+        <Spinner animation="border" />
+      </div>
+    )
+  }
   if (error || !ticket) {
     return <Alert variant="danger">{error || 'Ingresso não encontrado'}</Alert>
   }
 
   return (
-    <>
-      <h1 className="h3 mb-3">Ingresso compartilhado</h1>
-      <p className="fw-semibold">{ticket.eventTitle}</p>
-      <p className="text-muted">{ticket.venue}</p>
+    <div className="auth-wrap">
+      <div className="surface-card ticket-card p-4 text-center">
+      <p className="eyebrow mb-2">Ingresso compartilhado</p>
+      <h1 className="h4">{ticket.eventTitle}</h1>
+      <p className="text-muted mb-1">{ticket.venue}</p>
       <p>{new Date(ticket.sessionDatetime).toLocaleString('pt-BR')}</p>
       <div className="d-flex justify-content-center my-3">
         <QRCodeSVG value={ticket.code} size={180} />
       </div>
-      <p className="small text-break">
+      <p className="small text-break mb-0">
         <code>{ticket.code}</code>
       </p>
-    </>
+      </div>
+    </div>
   )
 }

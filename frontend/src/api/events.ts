@@ -6,10 +6,12 @@ export type EventWithCount = Event & { sessionCount?: number }
 export async function listEvents(filters?: {
   query?: string
   type?: EventType | 'all'
+  state?: string
 }): Promise<EventWithCount[]> {
   const params = new URLSearchParams()
   if (filters?.query?.trim()) params.set('query', filters.query.trim())
   if (filters?.type && filters.type !== 'all') params.set('type', filters.type)
+  if (filters?.state) params.set('state', filters.state)
   const qs = params.toString()
   return request<EventWithCount[]>(`/events/${qs ? `?${qs}` : ''}`)
 }

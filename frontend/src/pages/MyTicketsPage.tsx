@@ -15,19 +15,30 @@ export function MyTicketsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <Spinner animation="border" size="sm" />
+  if (loading) {
+    return (
+      <div className="page-spinner">
+        <Spinner animation="border" />
+      </div>
+    )
+  }
 
   return (
     <>
-      <h1 className="h3 mb-3">Meus ingressos</h1>
+      <section className="hero">
+        <p className="eyebrow">Carteira</p>
+        <h1 className="h3 mb-0">Meus ingressos</h1>
+      </section>
       {error && <Alert variant="danger">{error}</Alert>}
       {tickets.length === 0 ? (
-        <p className="text-muted">Nenhum ingresso ainda.</p>
+        <div className="empty-state">
+          <p className="mb-0">Nenhum ingresso ainda.</p>
+        </div>
       ) : (
         <Row xs={1} md={2} className="g-3">
           {tickets.map((ticket) => (
             <Col key={ticket.id}>
-              <Card body>
+              <Card body className="ticket-card surface-card">
                 <h2 className="h5">{ticket.eventTitle}</h2>
                 <p className="mb-1 text-muted">{ticket.venue}</p>
                 <p className="mb-2">

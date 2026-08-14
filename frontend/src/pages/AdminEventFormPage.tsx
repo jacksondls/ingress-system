@@ -17,12 +17,14 @@ import {
 } from '../api/orders'
 import { SessionManager } from '../components/SessionManager'
 import type { EventInput, EventType } from '../types'
+import { STATES } from '../location/states'
 
 const empty: EventInput = {
   title: '',
   type: 'filme',
   description: '',
   venue: '',
+  state: 'SP',
   imageUrl: '',
   tmdbId: null,
   ticketmasterId: '',
@@ -62,6 +64,7 @@ export function AdminEventFormPage() {
         type: event.type,
         description: event.description,
         venue: event.venue,
+        state: event.state || 'SP',
         imageUrl: event.imageUrl ?? '',
         tmdbId: event.tmdbId ?? null,
         ticketmasterId: event.ticketmasterId ?? '',
@@ -142,6 +145,7 @@ export function AdminEventFormPage() {
       type: form.type,
       description: form.description.trim(),
       venue: form.venue.trim(),
+      state: form.state,
       imageUrl: form.imageUrl?.trim() || undefined,
       tmdbId: form.tmdbId ?? null,
       ticketmasterId: form.ticketmasterId?.trim() || undefined,
@@ -168,7 +172,7 @@ export function AdminEventFormPage() {
 
   return (
     <>
-      <Link to="/admin" className="d-inline-block mb-3">
+      <Link to="/admin" className="d-inline-block mb-3 text-decoration-none">
         ← Voltar
       </Link>
       <h1 className="h3 mb-3">
@@ -177,7 +181,7 @@ export function AdminEventFormPage() {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <div className="mb-4 p-3 border rounded">
+      <div className="mb-4 p-3 surface-card">
         <h2 className="h6">Buscar filme no TMDb</h2>
         <Stack direction="horizontal" gap={2} className="mb-2">
           <Form.Control
@@ -209,7 +213,7 @@ export function AdminEventFormPage() {
         )}
       </div>
 
-      <div className="mb-4 p-3 border rounded">
+      <div className="mb-4 p-3 surface-card">
         <h2 className="h6">Buscar show no Ticketmaster</h2>
         <Stack direction="horizontal" gap={2} className="mb-2">
           <Form.Control
@@ -245,7 +249,7 @@ export function AdminEventFormPage() {
         noValidate
         validated={validated}
         onSubmit={handleSubmit}
-        className="mb-5"
+        className="mb-5 surface-card p-3 p-md-4"
       >
         <Form.Group className="mb-3" controlId="event-title">
           <Form.Label>Título</Form.Label>
@@ -276,6 +280,21 @@ export function AdminEventFormPage() {
             value={form.venue}
             onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))}
           />
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="event-state">
+          <Form.Label>Estado</Form.Label>
+          <Form.Select
+            required
+            value={form.state}
+            onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+          >
+            {STATES.map((item) => (
+              <option key={item.uf} value={item.uf}>
+                {item.uf} — {item.name}
+              </option>
+            ))}
+          </Form.Select>
         </Form.Group>
 
         <Form.Group className="mb-3" controlId="event-description">

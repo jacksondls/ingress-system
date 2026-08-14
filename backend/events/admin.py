@@ -10,8 +10,8 @@ class SessionInline(admin.TabularInline):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('title', 'type', 'venue', 'created_at')
-    list_filter = ('type',)
+    list_display = ('title', 'type', 'state', 'venue', 'created_at')
+    list_filter = ('type', 'state')
     search_fields = ('title', 'venue')
     inlines = [SessionInline]
 

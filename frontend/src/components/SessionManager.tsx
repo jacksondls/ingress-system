@@ -145,7 +145,8 @@ export function SessionManager({ eventId, editable = false }: Props) {
       {sessions.length === 0 ? (
         <p className="text-muted">Nenhuma sessão cadastrada.</p>
       ) : (
-        <Table responsive striped bordered hover size="sm">
+        <div className="surface-card p-2 p-md-3">
+        <Table responsive hover size="sm" className="mb-0">
           <thead>
             <tr>
               <th>Data/hora</th>
@@ -188,6 +189,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
             ))}
           </tbody>
         </Table>
+        </div>
       )}
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>

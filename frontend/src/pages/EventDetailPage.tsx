@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Badge, Button, Form, Spinner, Table } from 'react-bootstrap'
+import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getEventById } from '../api/events'
 import { createOrder } from '../api/orders'
@@ -120,13 +120,19 @@ export function EventDetailPage() {
     )
   }
 
-  if (loading) return <Spinner animation="border" size="sm" />
+  if (loading) {
+    return (
+      <div className="page-spinner">
+        <Spinner animation="border" />
+      </div>
+    )
+  }
   if (!event) {
     return (
-      <>
+      <div className="empty-state">
         <p>Evento não encontrado.</p>
         <Link to="/">Voltar</Link>
-      </>
+      </div>
     )
   }
 
@@ -134,25 +140,32 @@ export function EventDetailPage() {
 
   return (
     <>
-      <Link to="/" className="d-inline-block mb-3">
+      <Link to="/" className="d-inline-block mb-3 text-decoration-none">
         ← Voltar
       </Link>
-      <div className="d-flex align-items-center gap-2 mb-2">
-        <h1 className="h3 mb-0">{event.title}</h1>
-        <Badge bg={event.type === 'show' ? 'info' : 'secondary'}>
-          {event.type === 'show' ? 'Show' : 'Filme'}
-        </Badge>
-      </div>
-      <p className="text-muted mb-2">{event.venue}</p>
-      <p className="mb-4">{event.description}</p>
-      {event.imageUrl && (
-        <img
-          src={event.imageUrl}
-          alt=""
-          className="img-fluid rounded mb-4"
-          style={{ maxHeight: 280 }}
-        />
-      )}
+      <Row className="g-4 mb-4">
+        <Col md={4}>
+          <div
+            className="event-card-cover rounded-4"
+            style={
+              event.imageUrl
+                ? { backgroundImage: `url(${event.imageUrl})`, height: 320 }
+                : { height: 320 }
+            }
+          />
+        </Col>
+        <Col md={8}>
+          <Badge
+            pill
+            className={`mb-2 ${event.type === 'show' ? 'badge-show' : 'badge-filme'}`}
+          >
+            {event.type === 'show' ? 'Show' : 'Filme'}
+          </Badge>
+          <h1 className="h2 mb-2">{event.title}</h1>
+          <p className="text-muted mb-3">{event.venue}</p>
+          <p className="mb-0">{event.description}</p>
+        </Col>
+      </Row>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
@@ -160,7 +173,8 @@ export function EventDetailPage() {
       {sessions.length === 0 ? (
         <p className="text-muted">Nenhuma sessão.</p>
       ) : (
-        <Table responsive striped bordered hover size="sm">
+        <div className="surface-card p-2 p-md-3">
+        <Table responsive hover size="sm" className="mb-0">
           <thead>
             <tr>
               <th>Data/hora</th>
@@ -218,10 +232,11 @@ export function EventDetailPage() {
             })}
           </tbody>
         </Table>
+        </div>
       )}
 
       {seatSessionId && (
-        <div className="border rounded p-3 mt-4">
+        <div className="surface-card p-3 mt-4">
           <h3 className="h6">
             Mapa — {seatSession ? formatDateTime(seatSession.datetime) : ''}
           </h3>

@@ -21,6 +21,7 @@ SEED_EVENTS = [
         'type': 'show',
         'description': 'Turnê mundial com os clássicos e músicas novas.',
         'venue': 'Allianz Parque, São Paulo',
+        'state': 'SP',
     },
     {
         'id': '22222222-2222-2222-2222-222222222222',
@@ -28,6 +29,7 @@ SEED_EVENTS = [
         'type': 'filme',
         'description': 'Paul Atreides une forças com Chani e os Fremen.',
         'venue': 'Cinemark Shopping Eldorado',
+        'state': 'SP',
     },
 ]
 
@@ -86,6 +88,7 @@ class Command(BaseCommand):
                     'type': data['type'],
                     'description': data['description'],
                     'venue': data['venue'],
+                    'state': data.get('state', 'SP'),
                     'organizer': organizer,
                 },
             )

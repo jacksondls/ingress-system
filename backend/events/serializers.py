@@ -3,26 +3,6 @@ from rest_framework import serializers
 from .models import Event, Order, Seat, Session, Ticket
 
 
-class EventSerializer(serializers.ModelSerializer):
-    session_count = serializers.IntegerField(read_only=True, required=False)
-
-    class Meta:
-        model = Event
-        fields = (
-            'id',
-            'title',
-            'type',
-            'description',
-            'venue',
-            'image_url',
-            'tmdb_id',
-            'ticketmaster_id',
-            'created_at',
-            'session_count',
-        )
-        read_only_fields = ('id', 'created_at', 'session_count')
-
-
 class SeatSerializer(serializers.ModelSerializer):
     label = serializers.CharField(read_only=True)
 
@@ -77,6 +57,29 @@ class SessionSerializer(serializers.ModelSerializer):
                 )
             attrs['capacity'] = rows * cols
         return attrs
+
+
+class EventSerializer(serializers.ModelSerializer):
+    session_count = serializers.IntegerField(read_only=True, required=False)
+    sessions = SessionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Event
+        fields = (
+            'id',
+            'title',
+            'type',
+            'description',
+            'venue',
+            'state',
+            'image_url',
+            'tmdb_id',
+            'ticketmaster_id',
+            'created_at',
+            'session_count',
+            'sessions',
+        )
+        read_only_fields = ('id', 'created_at', 'session_count', 'sessions')
 
 
 class OrderSerializer(serializers.ModelSerializer):

@@ -28,8 +28,11 @@ export function AdminListPage() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="h3 mb-0">Gerenciar eventos</h1>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <p className="eyebrow mb-1">Organizador</p>
+          <h1 className="h3 mb-0">Gerenciar eventos</h1>
+        </div>
         <Link to="/admin/eventos/novo" className="btn btn-primary">
           Novo evento
         </Link>
@@ -40,7 +43,8 @@ export function AdminListPage() {
       ) : events.length === 0 ? (
         <p className="text-muted">Nenhum evento cadastrado.</p>
       ) : (
-        <Table responsive striped bordered hover>
+        <div className="surface-card p-2 p-md-3">
+        <Table responsive hover className="mb-0">
           <thead>
             <tr>
               <th>Título</th>
@@ -55,7 +59,10 @@ export function AdminListPage() {
               <tr key={event.id}>
                 <td>{event.title}</td>
                 <td>
-                  <Badge bg={event.type === 'show' ? 'info' : 'secondary'}>
+                  <Badge
+                    pill
+                    className={event.type === 'show' ? 'badge-show' : 'badge-filme'}
+                  >
                     {event.type === 'show' ? 'Show' : 'Filme'}
                   </Badge>
                 </td>
@@ -82,6 +89,7 @@ export function AdminListPage() {
             ))}
           </tbody>
         </Table>
+        </div>
       )}
 
       <Modal show={!!deleteId} onHide={() => setDeleteId(null)} centered>

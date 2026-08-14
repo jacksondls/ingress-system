@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import { Layout } from './components/Layout'
+import { StateFilterProvider } from './location/StateFilter'
 import { AdminEventFormPage } from './pages/AdminEventFormPage'
 import { AdminListPage } from './pages/AdminListPage'
 import { CheckoutPage } from './pages/CheckoutPage'
@@ -15,12 +16,13 @@ import { ShareTicketPage } from './pages/ShareTicketPage'
 export default function App() {
   return (
     <AuthProvider>
+      <StateFilterProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="login" element={<LoginPage />} />
           <Route element={<Layout />}>
             <Route index element={<ExplorePage />} />
             <Route path="evento/:id" element={<EventDetailPage />} />
-            <Route path="login" element={<LoginPage />} />
             <Route path="ingresso/:token" element={<ShareTicketPage />} />
 
             <Route element={<RequireAuth roles={['organizer']} />}>
@@ -42,6 +44,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </StateFilterProvider>
     </AuthProvider>
   )
 }

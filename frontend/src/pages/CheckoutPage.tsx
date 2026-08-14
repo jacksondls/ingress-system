@@ -33,16 +33,23 @@ export function CheckoutPage() {
     }
   }
 
-  if (loading) return <Spinner animation="border" size="sm" />
+  if (loading) {
+    return (
+      <div className="page-spinner">
+        <Spinner animation="border" />
+      </div>
+    )
+  }
   if (!order) return <Alert variant="danger">{error || 'Pedido não encontrado'}</Alert>
 
   return (
-    <>
+    <div className="auth-wrap">
       <h1 className="h3 mb-3">Checkout</h1>
       {error && <Alert variant="danger">{error}</Alert>}
+      <div className="surface-card p-4 mb-3">
       <p>
-        <strong>Evento:</strong> {order.session?.eventId ? '' : ''}
-        sessão {new Date(order.session.datetime).toLocaleString('pt-BR')}
+        <strong>Sessão:</strong>{' '}
+        {new Date(order.session.datetime).toLocaleString('pt-BR')}
       </p>
       <p>
         <strong>Quantidade:</strong> {order.quantity}
@@ -54,9 +61,10 @@ export function CheckoutPage() {
           currency: 'BRL',
         })}
       </p>
-      <p>
+      <p className="mb-0">
         <strong>Status:</strong> {order.status}
       </p>
+      </div>
 
       {order.status === 'pending' && (
         <Stack direction="horizontal" gap={2}>
@@ -83,6 +91,6 @@ export function CheckoutPage() {
       {order.status === 'failed' && (
         <Alert variant="warning">Pagamento recusado. Pedido não gerou ingressos.</Alert>
       )}
-    </>
+    </div>
   )
 }

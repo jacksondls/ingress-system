@@ -12,7 +12,8 @@ export function SeatMap({ seats, selectedIds, onToggle }: Props) {
 
   return (
     <div className="mb-3">
-      <div className="text-center text-muted small mb-2">TELA</div>
+      <div className="seat-screen" />
+      <p className="text-center text-muted small mb-3">Tela</p>
       <div className="d-flex flex-column gap-2 align-items-center">
         {rows.map((row) => (
           <div key={row} className="d-flex gap-1 align-items-center">
@@ -29,6 +30,7 @@ export function SeatMap({ seats, selectedIds, onToggle }: Props) {
                   <Button
                     key={seat.id}
                     size="sm"
+                    className="seat-btn"
                     disabled={taken}
                     variant={
                       taken
@@ -37,7 +39,6 @@ export function SeatMap({ seats, selectedIds, onToggle }: Props) {
                           ? 'primary'
                           : 'outline-primary'
                     }
-                    style={{ width: 36, padding: '0.15rem' }}
                     onClick={() => onToggle(seat.id)}
                     title={seat.label}
                   >

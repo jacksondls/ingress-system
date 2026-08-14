@@ -80,8 +80,11 @@ export function GatePage() {
             : undefined
 
   return (
-    <>
-      <h1 className="h3 mb-3">Portaria</h1>
+    <div className="auth-wrap" style={{ maxWidth: 520 }}>
+      <section className="hero">
+        <p className="eyebrow">Validação</p>
+        <h1 className="h3 mb-0">Portaria</h1>
+      </section>
       {error && <Alert variant="danger">{error}</Alert>}
       {result && variant && (
         <Alert variant={variant}>
@@ -89,7 +92,8 @@ export function GatePage() {
         </Alert>
       )}
 
-      <Form.Group className="mb-3" style={{ maxWidth: 480 }}>
+      <div className="surface-card p-4 mb-3">
+      <Form.Group className="mb-3">
         <Form.Label>Evento</Form.Label>
         {events.length === 0 ? (
           <Spinner size="sm" />
@@ -107,7 +111,7 @@ export function GatePage() {
         )}
       </Form.Group>
 
-      <Form onSubmit={handleSubmit} className="mb-3" style={{ maxWidth: 480 }}>
+      <Form onSubmit={handleSubmit} className="mb-0">
         <Form.Group className="mb-2">
           <Form.Label>Código do ingresso</Form.Label>
           <Form.Control
@@ -124,14 +128,15 @@ export function GatePage() {
         </Button>
       </Form>
 
-      <div id="gate-qr-reader" style={{ maxWidth: 360 }} />
+      </div>
+      <div id="gate-qr-reader" className="mb-3" />
 
-      <ListGroup className="mt-4" style={{ maxWidth: 480 }}>
+      <ListGroup className="mt-3">
         <ListGroup.Item>valid — ingresso ok</ListGroup.Item>
         <ListGroup.Item>invalid — código inválido/forjado</ListGroup.Item>
         <ListGroup.Item>already_used — já utilizado</ListGroup.Item>
         <ListGroup.Item>wrong_event — evento errado</ListGroup.Item>
       </ListGroup>
-    </>
+    </div>
   )
 }

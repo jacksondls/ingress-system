@@ -8,11 +8,13 @@ export type Event = {
   type: EventType
   description: string
   venue: string
+  state: string
   imageUrl?: string
   tmdbId?: number | null
   ticketmasterId?: string
   createdAt: string
   sessionCount?: number
+  sessions?: Session[]
 }
 
 export type Session = {

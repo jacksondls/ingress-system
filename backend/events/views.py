@@ -55,12 +55,17 @@ class EventViewSet(viewsets.ModelViewSet):
     permission_classes = [IsOrganizerOrReadOnly]
 
     def get_queryset(self):
-        qs = Event.objects.annotate(session_count=Count('sessions'))
+        qs = Event.objects.annotate(session_count=Count('sessions')).prefetch_related(
+            'sessions',
+        )
         query = self.request.query_params.get('query', '').strip()
         event_type = self.request.query_params.get('type', 'all').strip()
+        state = self.request.query_params.get('state', '').strip().upper()
 
         if event_type and event_type != 'all':
             qs = qs.filter(type=event_type)
+        if state:
+            qs = qs.filter(state=state)
         if query:
             qs = qs.filter(Q(title__icontains=query) | Q(venue__icontains=query))
         return qs

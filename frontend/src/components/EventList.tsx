@@ -1,39 +1,75 @@
-import { Badge, ListGroup } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
-import type { Event } from '../types'
+import type { Event, Session } from '../types'
 
 type Props = {
   events: Event[]
 }
 
-function typeLabel(type: Event['type']) {
-  return type === 'show' ? 'Show' : 'Filme'
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
+}
+
+function formatPrice(value: number) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function sessionLine(session: Session) {
+  const room = session.room ? ` · ${session.room}` : ''
+  const available = session.available ?? session.capacity
+  return `${formatDateTime(session.datetime)}${room} · ${formatPrice(session.price)} · ${available} vagas`
 }
 
 export function EventList({ events }: Props) {
   if (events.length === 0) {
-    return <p className="text-muted">Nenhum evento encontrado.</p>
+    return (
+      <div className="empty-state">
+        <p className="mb-0">Nenhum evento encontrado.</p>
+      </div>
+    )
   }
 
   return (
-    <ListGroup>
-      {events.map((event) => (
-        <ListGroup.Item
-          key={event.id}
-          action
-          as={Link}
-          to={`/evento/${event.id}`}
-          className="d-flex justify-content-between align-items-start"
-        >
-          <div>
-            <div className="fw-semibold">{event.title}</div>
-            <small className="text-muted">{event.venue}</small>
-          </div>
-          <Badge bg={event.type === 'show' ? 'info' : 'secondary'} pill>
-            {typeLabel(event.type)}
-          </Badge>
-        </ListGroup.Item>
-      ))}
-    </ListGroup>
+    <section>
+      <h2 className="h4 mb-3">Em cartaz</h2>
+      <div className="event-strip">
+        {events.map((event) => {
+          const sessions = event.sessions ?? []
+          return (
+            <Link
+              key={event.id}
+              to={`/evento/${event.id}`}
+              className="event-poster-card text-decoration-none"
+            >
+              <div
+                className="event-poster-cover"
+                style={
+                  event.imageUrl
+                    ? { backgroundImage: `url(${event.imageUrl})` }
+                    : undefined
+                }
+              >
+                <div className="event-poster-overlay">
+                  <p className="mb-2">{event.description}</p>
+                  {sessions.length === 0 ? (
+                    <p className="small mb-0">Nenhuma sessão.</p>
+                  ) : (
+                    <ul className="mb-0 ps-3">
+                      {sessions.map((session) => (
+                        <li key={session.id}>{sessionLine(session)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <h3 className="event-poster-title">{event.title}</h3>
+              <p className="event-poster-venue">{event.venue}</p>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
   )
 }
