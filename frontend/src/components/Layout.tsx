@@ -86,7 +86,55 @@ export function Layout() {
         <Outlet />
       </Container>
       <footer className="app-footer">
-        <Container>Shows e cinema · reserva, QR e portaria</Container>
+        <Container>
+          <div className="footer-nav">
+            <div>
+              <h2 className="footer-title">Explorar</h2>
+              <Nav className="flex-column">
+                <Nav.Link as={NavLink} to="/" end>
+                  Início
+                </Nav.Link>
+              </Nav>
+            </div>
+            <div>
+              <h2 className="footer-title">Conta</h2>
+              <Nav className="flex-column">
+                {user ? (
+                  <button type="button" className="footer-link" onClick={logout}>
+                    Sair
+                  </button>
+                ) : (
+                  <Nav.Link as={NavLink} to="/login">
+                    Entrar
+                  </Nav.Link>
+                )}
+              </Nav>
+            </div>
+            <div>
+              <h2 className="footer-title">Atalhos</h2>
+              <Nav className="flex-column">
+                {user?.role === 'organizer' && (
+                  <Nav.Link as={NavLink} to="/admin">
+                    Gerenciar
+                  </Nav.Link>
+                )}
+                {user?.role === 'client' && (
+                  <Nav.Link as={NavLink} to="/meus-ingressos">
+                    Meus ingressos
+                  </Nav.Link>
+                )}
+                {user?.role === 'gate' && (
+                  <Nav.Link as={NavLink} to="/portaria">
+                    Portaria
+                  </Nav.Link>
+                )}
+                {!user && (
+                  <span className="footer-hint">Entre para ver atalhos</span>
+                )}
+              </Nav>
+            </div>
+          </div>
+        </Container>
       </footer>
     </div>
   )

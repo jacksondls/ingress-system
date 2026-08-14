@@ -18,5 +18,27 @@ services:
       timeout: 5s
       retries: 20
 
+  backend:
+    build: ./backend
+    container_name: ingresso-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ingresso
+      MYSQL_USER: ingresso
+      MYSQL_PASSWORD: ingresso
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 volumes:
   mysql_data:

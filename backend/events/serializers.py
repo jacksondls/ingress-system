@@ -134,6 +134,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
+    order_id = serializers.UUIDField(source='order.id', read_only=True)
     event_title = serializers.CharField(
         source='order.session.event.title',
         read_only=True,
@@ -157,6 +158,7 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = (
             'id',
+            'order_id',
             'code',
             'status',
             'used_at',

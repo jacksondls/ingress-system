@@ -51,6 +51,22 @@ export function EventDetailPage() {
     }
   }, [id])
 
+  useEffect(() => {
+    if (!seatSessionId) return
+    const timer = window.setInterval(() => {
+      void listSeats(seatSessionId)
+        .then((next) => {
+          setSeats(next)
+          const free = new Set(
+            next.filter((s) => s.status === 'available').map((s) => s.id),
+          )
+          setSelectedSeatIds((ids) => ids.filter((seatId) => free.has(seatId)))
+        })
+        .catch(() => undefined)
+    }, 4000)
+    return () => window.clearInterval(timer)
+  }, [seatSessionId])
+
   async function openSeatMap(session: Session) {
     if (!user) {
       navigate('/login')

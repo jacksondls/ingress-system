@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner, Stack } from 'react-bootstrap'
 import { Link, useParams } from 'react-router-dom'
-import { payOrder, type Order } from '../api/orders'
+import { cancelOrder, payOrder, type Order } from '../api/orders'
 import { request } from '../api/client'
 
 export function CheckoutPage() {
@@ -28,6 +28,19 @@ export function CheckoutPage() {
       setOrder(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no pagamento')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function cancel() {
+    if (!orderId) return
+    setBusy(true)
+    setError(null)
+    try {
+      setOrder(await cancelOrder(orderId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao cancelar')
     } finally {
       setBusy(false)
     }
@@ -78,6 +91,13 @@ export function CheckoutPage() {
           >
             Recusar pagamento
           </Button>
+          <Button
+            variant="outline-secondary"
+            disabled={busy}
+            onClick={() => void cancel()}
+          >
+            Cancelar pedido
+          </Button>
         </Stack>
       )}
 
@@ -90,6 +110,10 @@ export function CheckoutPage() {
 
       {order.status === 'failed' && (
         <Alert variant="warning">Pagamento recusado. Pedido não gerou ingressos.</Alert>
+      )}
+
+      {order.status === 'cancelled' && (
+        <Alert variant="secondary">Pedido cancelado. Assentos e vagas voltaram ao estoque.</Alert>
       )}
     </div>
   )

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Spinner } from 'react-bootstrap'
 import { QRCodeSVG } from 'qrcode.react'
-import { listMyTickets, type Ticket } from '../api/orders'
+import { cancelOrder, listMyTickets, type Ticket } from '../api/orders'
 
 export function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
 
   useEffect(() => {
     void listMyTickets()
@@ -14,6 +15,19 @@ export function MyTicketsPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoading(false))
   }, [])
+
+  async function onCancel(orderId: string) {
+    setCancelling(orderId)
+    setError(null)
+    try {
+      await cancelOrder(orderId)
+      setTickets((list) => list.filter((t) => t.orderId !== orderId))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao cancelar')
+    } finally {
+      setCancelling(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -54,16 +68,30 @@ export function MyTicketsPage() {
                 <p className="small text-break">
                   <code>{ticket.code}</code>
                 </p>
-                <Button
-                  size="sm"
-                  variant="outline-secondary"
-                  onClick={() => {
-                    const url = `${window.location.origin}${ticket.shareUrl}`
-                    void navigator.clipboard.writeText(url)
-                  }}
-                >
-                  Copiar link de compartilhamento
-                </Button>
+                <div className="d-flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    onClick={() => {
+                      const url = `${window.location.origin}${ticket.shareUrl}`
+                      void navigator.clipboard.writeText(url)
+                    }}
+                  >
+                    Copiar link de compartilhamento
+                  </Button>
+                  {!tickets.some(
+                    (t) => t.orderId === ticket.orderId && t.status === 'used',
+                  ) && (
+                    <Button
+                      size="sm"
+                      variant="outline-danger"
+                      disabled={cancelling === ticket.orderId}
+                      onClick={() => void onCancel(ticket.orderId)}
+                    >
+                      {cancelling === ticket.orderId ? '...' : 'Cancelar pedido'}
+                    </Button>
+                  )}
+                </div>
               </Card>
             </Col>
           ))}

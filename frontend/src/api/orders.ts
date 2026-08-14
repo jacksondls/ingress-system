@@ -12,6 +12,7 @@ export type Order = {
 
 export type Ticket = {
   id: string
+  orderId: string
   code: string
   status: 'valid' | 'used'
   usedAt?: string | null
@@ -43,6 +44,12 @@ export async function payOrder(orderId: string, approve: boolean) {
   return request<Order>(`/orders/${orderId}/pay/`, {
     method: 'POST',
     body: JSON.stringify({ approve }),
+  })
+}
+
+export async function cancelOrder(orderId: string) {
+  return request<Order>(`/orders/${orderId}/cancel/`, {
+    method: 'POST',
   })
 }
 

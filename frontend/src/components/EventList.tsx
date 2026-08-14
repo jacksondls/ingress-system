@@ -66,6 +66,12 @@ export function EventList({ events }: Props) {
               </div>
               <h3 className="event-poster-title">{event.title}</h3>
               <p className="event-poster-venue">{event.venue}</p>
+              {sessions[0] && (
+                <p className="event-poster-meta">
+                  {formatDateTime(sessions[0].datetime)} ·{' '}
+                  {formatPrice(sessions[0].price)}
+                </p>
+              )}
             </Link>
           )
         })}

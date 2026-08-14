@@ -12,15 +12,21 @@ Plataforma de eventos e ingressos (Desafio Elite Dev): organizar eventos (TMDb /
 
 ## Como rodar
 
-### 1. MySQL
+### 1. Docker (MySQL + API)
 
 ```bash
 docker compose up -d
 ```
 
-MySQL em `localhost:3308` (3306/3307 já estavam ocupadas neste ambiente).
+MySQL em `localhost:3308` (3306/3307 já estavam ocupadas neste ambiente). API em http://localhost:8000/api/
 
-### 2. Backend
+Só o banco, com o backend no venv local:
+
+```bash
+docker compose up -d mysql
+```
+
+### 2. Backend (venv)
 
 ```bash
 cd backend
@@ -42,6 +48,10 @@ API: http://localhost:8000/api/
 
 O `migrate` inclui o campo `state` (UF) nos eventos. O seed cria um show (pista) e um filme (mapa 5×8) em **SP**.
 
+```bash
+python manage.py test
+```
+
 ### 3. Frontend
 
 ```bash
@@ -52,6 +62,8 @@ npm run dev
 ```
 
 App: http://localhost:5173
+
+Em produção, `VITE_API_URL` aponta para a API pública (ex.: `https://<api>/api`).
 
 ## Usuários de teste (seed)
 
@@ -69,7 +81,8 @@ App: http://localhost:5173
 3. Entrar como **portaria** → selecionar evento → colar código ou ler QR → `valid`.
 4. Validar o mesmo código de novo → `already_used`.
 5. No checkout, **Recusar pagamento** em outro pedido → `failed`, sem ingressos.
-6. Trocar o estado na navbar para outro UF → lista vazia até cadastrar evento naquele estado.
+6. **Cancelar pedido** (checkout pendente ou Meus ingressos após pagar) → estoque/assentos voltam.
+7. Trocar o estado na navbar para outro UF → lista vazia até cadastrar evento naquele estado.
 
 ## Endpoints principais
 
@@ -78,7 +91,7 @@ App: http://localhost:5173
 - `GET /api/tmdb/search/?query=`
 - `GET /api/ticketmaster/search/?query=`
 - `GET /api/sessions/{id}/seats/`
-- `POST /api/orders/` (`quantity` ou `seatIds`) + `POST /api/orders/{id}/pay/`
+- `POST /api/orders/` (`quantity` ou `seatIds`) + `POST /api/orders/{id}/pay/` + `POST /api/orders/{id}/cancel/`
 - `GET /api/tickets/mine/`
 - `GET /api/tickets/share/{token}/`
 - `POST /api/gate/validate/`
@@ -108,10 +121,22 @@ Scaffolding React/Django, CRUD, Docker MySQL, JWT, pedidos, QR, portaria, TMDb, 
 
 Seed de usuários, escolha das portas, critérios da portaria (`valid` / `already_used` / etc.) e o texto deste README.
 
+## Deploy
+
+Front na [Vercel](https://vercel.com) e API + MySQL no [Render](https://render.com). Blueprint: [`render.yaml`](render.yaml).
+
+1. **Render** — conecte o repo e aplique o Blueprint (MySQL privado + API Docker). O container roda `migrate` + `seed_events` na subida.
+2. **Vercel** — root `frontend`, env `VITE_API_URL=https://<api-render>/api`.
+3. Depois, restrinja `CORS_ALLOWED_ORIGINS` à URL da Vercel (o Blueprint inicia com `CORS_ALLOW_ALL=true`).
+
+URLs (após publicar):
+
+- App: _(pendente)_
+- API: _(pendente)_
+
 ## Limitações atuais
 
 - Pagamento 100% simulado (botões aprovar/recusar).
-- Deploy ainda não publicado.
 - Ticketmaster exige `TICKETMASTER_API_KEY` no `.env`.
 - Eventos seed só em SP; outros estados só aparecem depois de cadastro.
 

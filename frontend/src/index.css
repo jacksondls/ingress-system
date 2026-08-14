@@ -69,10 +69,52 @@ body {
 
 .app-footer {
   border-top: 1px solid var(--line);
+  background: #000;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 2rem 0 1.5rem;
+  margin-top: auto;
+}
+
+.footer-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.footer-title {
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.app-footer .nav-link,
+.footer-link {
+  color: var(--muted);
+  padding: 0.2rem 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  text-decoration: none;
+}
+
+.app-footer .nav-link:hover,
+.footer-link:hover {
+  color: var(--cinemark);
+}
+
+.footer-hint {
   color: var(--muted);
   font-size: 0.85rem;
-  padding: 1.25rem 0;
-  margin-top: auto;
+}
+
+@media (max-width: 575px) {
+  .footer-nav {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hero {
@@ -222,6 +264,12 @@ body {
   font-size: 0.8rem;
   color: var(--muted);
   margin: 0;
+}
+
+.event-poster-meta {
+  font-size: 0.75rem;
+  color: var(--ink);
+  margin: 0.2rem 0 0;
 }
 
 .surface-card {

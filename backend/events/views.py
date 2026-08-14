@@ -49,6 +49,24 @@ def release_held_seats(order: Order) -> None:
     )
 
 
+def restore_sold_seats(order: Order) -> None:
+    Seat.objects.filter(held_order=order, status=Seat.Status.SOLD).update(
+        status=Seat.Status.AVAILABLE,
+        held_order=None,
+    )
+    seat_ids = list(
+        Ticket.objects.filter(order=order, seat_id__isnull=False).values_list(
+            'seat_id',
+            flat=True,
+        )
+    )
+    if seat_ids:
+        Seat.objects.filter(id__in=seat_ids).update(
+            status=Seat.Status.AVAILABLE,
+            held_order=None,
+        )
+
+
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
     http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
@@ -254,6 +272,41 @@ class OrderViewSet(viewsets.ModelViewSet):
                         Ticket(order=order, code=f'{raw}.{code}'),
                     )
                 Ticket.objects.bulk_create(tickets)
+
+        order.refresh_from_db()
+        return Response(OrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        if order.status not in (Order.Status.PENDING, Order.Status.PAID):
+            return Response(
+                {'detail': 'Pedido não pode ser cancelado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            locked = Session.objects.select_for_update().get(pk=order.session_id)
+            if order.status == Order.Status.PENDING:
+                release_held_seats(order)
+                order.status = Order.Status.CANCELLED
+                order.save(update_fields=['status'])
+                return Response(OrderSerializer(order).data)
+
+            if Ticket.objects.filter(
+                order=order,
+                status=Ticket.Status.USED,
+            ).exists():
+                return Response(
+                    {'detail': 'Ingresso já utilizado; não é possível cancelar.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            restore_sold_seats(order)
+            locked.sold = max(locked.sold - order.quantity, 0)
+            locked.save(update_fields=['sold'])
+            order.status = Order.Status.CANCELLED
+            order.save(update_fields=['status'])
 
         order.refresh_from_db()
         return Response(OrderSerializer(order).data)
