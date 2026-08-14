@@ -125,15 +125,14 @@ Seed de usuários, escolha das portas, critérios da portaria (`valid` / `alread
 
 Front na [Vercel](https://vercel.com) e API no [Render](https://render.com) (web free + Postgres free; MySQL local no Docker). Blueprint: [`render.yaml`](render.yaml).
 
-1. **Render** — https://dashboard.render.com/blueprint/new?repo=https://github.com/jacksondls/ingress-system  
-   Plano **Free** (Postgres expira em 30 dias). O container roda `migrate` + `seed_events` na subida.
-2. **Vercel** — root `frontend`, env `VITE_API_URL=https://<api-render>/api`.
+1. **Render** — Blueprint já aplicado (`ingresso-api` + `ingresso-db`, plano Free; Postgres expira em 30 dias).
+2. **Vercel** — root `frontend`, env `VITE_API_URL=https://ingresso-api-e0vz.onrender.com/api`.
 3. Depois, restrinja `CORS_ALLOWED_ORIGINS` à URL da Vercel (o Blueprint inicia com `CORS_ALLOW_ALL=true`).
 
-URLs (após publicar):
+URLs:
 
 - App: https://frontend-gold-one-25.vercel.app
-- API: _(pendente no Render — faça login no GitHub na tela aberta)_
+- API: https://ingresso-api-e0vz.onrender.com
 
 ## Limitações atuais
 
