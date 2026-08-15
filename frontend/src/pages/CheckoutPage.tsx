@@ -5,6 +5,7 @@ import { cancelOrder, payOrder, type Order } from '../api/orders'
 import { request } from '../api/client'
 import {
   formatCountdown,
+  formatOrderStatus,
   formatPrice,
   formatSessionDateTime,
   HOLD_MS,
@@ -98,7 +99,7 @@ export function CheckoutPage() {
           <strong>Total:</strong> {formatPrice(order.session.price * order.quantity)}
         </p>
         <p className="mb-0">
-          <strong>Status:</strong> {order.status}
+          <strong>Status:</strong> {formatOrderStatus(order.status)}
         </p>
       </div>
 
@@ -123,7 +124,7 @@ export function CheckoutPage() {
               disabled={busy || expired}
               onClick={() => void pay(false)}
             >
-              Recusar pagamento
+              Simular recusa
             </Button>
             <Button
               variant="outline-secondary"

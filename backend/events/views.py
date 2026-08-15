@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from django.db import transaction
@@ -399,55 +400,67 @@ class GateValidateView(APIView):
     def post(self, request):
         ser = GateValidateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        code = ser.validated_data['code'].strip()
+        raw_input = ser.validated_data['code'].strip()
         event_id = ser.validated_data['event_id']
 
-        with transaction.atomic():
-            try:
-                ticket = Ticket.objects.select_for_update().select_related(
-                    'order',
-                    'order__session',
-                    'order__session__event',
-                    'seat',
-                ).get(code=code)
-            except Ticket.DoesNotExist:
-                return Response({'result': 'invalid', 'detail': 'Código inválido.'})
+        try:
+            with transaction.atomic():
+                try:
+                    ticket = _lock_ticket(raw_input)
+                except Ticket.DoesNotExist:
+                    return Response({'result': 'invalid', 'detail': 'Código inválido.'})
 
-            if not _verify_ticket_code(code):
-                return Response({'result': 'invalid', 'detail': 'Código forjado.'})
+                if not _verify_ticket_code(ticket.code):
+                    return Response({'result': 'invalid', 'detail': 'Código forjado.'})
 
-            event = ticket.order.session.event
-            if str(event.id) != str(event_id):
+                event = ticket.order.session.event
+                if str(event.id) != str(event_id):
+                    return Response(
+                        {
+                            'result': 'wrong_event',
+                            'detail': 'Ingresso de outro evento.',
+                            'eventTitle': event.title,
+                        }
+                    )
+
+                if ticket.order.status != Order.Status.PAID:
+                    return Response({'result': 'invalid', 'detail': 'Pedido não pago.'})
+
+                if ticket.status == Ticket.Status.USED:
+                    return Response(
+                        {
+                            'result': 'already_used',
+                            'detail': 'Ingresso já utilizado.',
+                            'usedAt': ticket.used_at,
+                        }
+                    )
+
+                ticket.status = Ticket.Status.USED
+                ticket.used_at = timezone.now()
+                ticket.save(update_fields=['status', 'used_at'])
                 return Response(
                     {
-                        'result': 'wrong_event',
-                        'detail': 'Ingresso de outro evento.',
-                        'eventTitle': event.title,
+                        'result': 'valid',
+                        'detail': 'Ingresso válido.',
+                        'ticket': TicketSerializer(ticket).data,
                     }
                 )
-
-            if ticket.order.status != Order.Status.PAID:
-                return Response({'result': 'invalid', 'detail': 'Pedido não pago.'})
-
-            if ticket.status == Ticket.Status.USED:
-                return Response(
-                    {
-                        'result': 'already_used',
-                        'detail': 'Ingresso já utilizado.',
-                        'usedAt': ticket.used_at,
-                    }
-                )
-
-            ticket.status = Ticket.Status.USED
-            ticket.used_at = timezone.now()
-            ticket.save(update_fields=['status', 'used_at'])
+        except Exception:
             return Response(
-                {
-                    'result': 'valid',
-                    'detail': 'Ingresso válido.',
-                    'ticket': TicketSerializer(ticket).data,
-                }
+                {'detail': 'Falha ao validar ingresso.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+def _lock_ticket(value: str) -> Ticket:
+    qs = Ticket.objects.select_for_update()
+    match = re.search(r'/ingresso/([^/?#]+)', value)
+    if match:
+        return qs.get(share_token=match.group(1))
+    try:
+        return qs.get(code=value)
+    except Ticket.DoesNotExist:
+        return qs.get(share_token=value)
 
 
 def _verify_ticket_code(code: str) -> bool:

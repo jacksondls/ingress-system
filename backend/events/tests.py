@@ -147,6 +147,24 @@ class OrderAndGateTests(APITestCase):
         )
         self.assertEqual(after.data['result'], 'invalid')
 
+    def test_gate_accepts_share_url(self):
+        created, _ = self._hold_seat(self.client1)
+        paid = self.client.post(
+            f'/api/orders/{created.data["id"]}/pay/',
+            {'approve': True},
+            format='json',
+        )
+        ticket = paid.data['tickets'][0]
+        self._auth(self.gate)
+        url = f'https://example.com{ticket["share_url"]}'
+        res = self.client.post(
+            '/api/gate/validate/',
+            {'code': url, 'eventId': str(self.event.id)},
+            format='json',
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['result'], 'valid')
+
     def test_expired_hold_releases_seat(self):
         created, seat = self._hold_seat(self.client1)
         Order.objects.filter(pk=created.data['id']).update(

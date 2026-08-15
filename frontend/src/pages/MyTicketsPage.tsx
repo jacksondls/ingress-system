@@ -2,13 +2,35 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Spinner } from 'react-bootstrap'
 import { QRCodeSVG } from 'qrcode.react'
 import { cancelOrder, listMyTickets, type Ticket } from '../api/orders'
-import { formatSessionDateTime } from '../format'
+import { formatSessionDateTime, formatTicketStatus } from '../format'
+
+async function copyText(text: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+  } catch {
+    /* fallback abaixo */
+  }
+  const el = document.createElement('textarea')
+  el.value = text
+  el.setAttribute('readonly', '')
+  el.style.position = 'fixed'
+  el.style.left = '-9999px'
+  document.body.appendChild(el)
+  el.select()
+  const ok = document.execCommand('copy')
+  document.body.removeChild(el)
+  if (!ok) throw new Error('copy')
+}
 
 export function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     void listMyTickets()
@@ -16,6 +38,17 @@ export function MyTicketsPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoading(false))
   }, [])
+
+  async function onCopyLink(ticket: Ticket) {
+    const url = `${window.location.origin}${ticket.shareUrl}`
+    try {
+      await copyText(url)
+      setCopiedId(ticket.id)
+      window.setTimeout(() => setCopiedId((id) => (id === ticket.id ? null : id)), 2000)
+    } catch {
+      setError('Não foi possível copiar o link.')
+    }
+  }
 
   async function onCancel(orderId: string) {
     setCancelling(orderId)
@@ -61,7 +94,7 @@ export function MyTicketsPage() {
                   {ticket.seatLabel ? ` · Assento ${ticket.seatLabel}` : ''}
                 </p>
                 <p className="small mb-2">
-                  Status: <strong>{ticket.status}</strong>
+                  Status: <strong>{formatTicketStatus(ticket.status)}</strong>
                 </p>
                 <div className="d-flex justify-content-center mb-3">
                   <QRCodeSVG value={ticket.code} size={160} />
@@ -73,12 +106,9 @@ export function MyTicketsPage() {
                   <Button
                     size="sm"
                     variant="outline-secondary"
-                    onClick={() => {
-                      const url = `${window.location.origin}${ticket.shareUrl}`
-                      void navigator.clipboard.writeText(url)
-                    }}
+                    onClick={() => void onCopyLink(ticket)}
                   >
-                    Copiar link de compartilhamento
+                    {copiedId === ticket.id ? 'Copiado' : 'Copiar link de compartilhamento'}
                   </Button>
                   {!tickets.some(
                     (t) => t.orderId === ticket.orderId && t.status === 'used',

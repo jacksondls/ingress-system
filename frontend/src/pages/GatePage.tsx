@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Alert, Button, Form, ListGroup, Spinner } from 'react-bootstrap'
+import { Alert, Button, Form, Spinner } from 'react-bootstrap'
 import { Html5Qrcode } from 'html5-qrcode'
 import { listEvents } from '../api/events'
 import { validateGate } from '../api/orders'
+import { formatGateResult } from '../format'
 import type { Event } from '../types'
 
 export function GatePage() {
@@ -100,7 +101,7 @@ export function GatePage() {
       {error && <Alert variant="danger">{error}</Alert>}
       {result && variant && (
         <Alert variant={variant}>
-          <strong>{result.result}</strong> — {result.detail}
+          <strong>{formatGateResult(result.result)}</strong> — {result.detail}
         </Alert>
       )}
 
@@ -131,7 +132,7 @@ export function GatePage() {
           <Form.Control
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="Cole ou digite o código"
+            placeholder="Código ou link de compartilhamento"
           />
         </Form.Group>
         <Button type="submit" className="me-2">
@@ -144,13 +145,6 @@ export function GatePage() {
 
       </div>
       <div id="gate-qr-reader" className="mb-3" />
-
-      <ListGroup className="mt-3">
-        <ListGroup.Item>valid — ingresso ok</ListGroup.Item>
-        <ListGroup.Item>invalid — código inválido/forjado</ListGroup.Item>
-        <ListGroup.Item>already_used — já utilizado</ListGroup.Item>
-        <ListGroup.Item>wrong_event — evento errado</ListGroup.Item>
-      </ListGroup>
     </div>
   )
 }
