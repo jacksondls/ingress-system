@@ -48,6 +48,11 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-box">
+        <div className="text-center mb-3">
+          <Link to="/" className="btn btn-outline-secondary btn-sm">
+            Início
+          </Link>
+        </div>
         <div className="login-logo">
           <Link to="/">
             <b>Ingresso</b>

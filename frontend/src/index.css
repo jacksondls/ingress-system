@@ -350,6 +350,14 @@ body {
 .session-card-buy {
   width: 100%;
   font-weight: 700;
+  --bs-btn-bg: #2563eb;
+  --bs-btn-border-color: #2563eb;
+  --bs-btn-hover-bg: #1d4ed8;
+  --bs-btn-hover-border-color: #1d4ed8;
+  --bs-btn-active-bg: #1e40af;
+  --bs-btn-active-border-color: #1e40af;
+  --bs-btn-disabled-bg: #2563eb;
+  --bs-btn-disabled-border-color: #2563eb;
 }
 
 @media (min-width: 768px) {
@@ -514,15 +522,17 @@ body {
 
 .login-page .btn-primary,
 .btn-primary {
-  --bs-btn-bg: var(--cinemark);
-  --bs-btn-border-color: var(--cinemark);
+  --bs-btn-bg: #2563eb;
+  --bs-btn-border-color: #2563eb;
   --bs-btn-color: #fff;
-  --bs-btn-hover-bg: var(--cinemark-dark);
-  --bs-btn-hover-border-color: var(--cinemark-dark);
+  --bs-btn-hover-bg: #1d4ed8;
+  --bs-btn-hover-border-color: #1d4ed8;
   --bs-btn-hover-color: #fff;
-  --bs-btn-active-bg: var(--cinemark-dark);
-  --bs-btn-active-border-color: var(--cinemark-dark);
+  --bs-btn-active-bg: #1e40af;
+  --bs-btn-active-border-color: #1e40af;
   --bs-btn-active-color: #fff;
+  --bs-btn-disabled-bg: #2563eb;
+  --bs-btn-disabled-border-color: #2563eb;
 }
 
 .login-page .form-control:focus,
@@ -557,10 +567,10 @@ body {
 }
 
 .btn-outline-primary {
-  --bs-btn-color: var(--cinemark);
-  --bs-btn-border-color: var(--cinemark);
-  --bs-btn-hover-bg: var(--cinemark);
-  --bs-btn-hover-border-color: var(--cinemark);
+  --bs-btn-color: #2563eb;
+  --bs-btn-border-color: #2563eb;
+  --bs-btn-hover-bg: #2563eb;
+  --bs-btn-hover-border-color: #2563eb;
   --bs-btn-hover-color: #fff;
 }
 

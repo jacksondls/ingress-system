@@ -28,7 +28,7 @@ export function EventHero({ event }: Props) {
           <h1 className="event-hero-title">{event.title}</h1>
           <p className="event-hero-venue">{event.venue}</p>
           <p className="event-hero-desc">{excerpt}</p>
-          <Link to={`/evento/${event.id}`} className="btn btn-primary">
+          <Link to={`/evento/${event.id}`} className="btn btn-primary session-card-buy">
             Comprar ingresso
           </Link>
         </div>

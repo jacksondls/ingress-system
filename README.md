@@ -6,7 +6,7 @@ Plataforma de eventos e ingressos (Desafio Elite Dev): organizar eventos (TMDb /
 
 - App: https://frontend-gold-one-25.vercel.app
 - API: https://ingresso-api-e0vz.onrender.com
-- Login: `cliente1` / `cliente123` (estado **SP** na navbar)
+- Login: `cliente1` / `cliente123` 
 - O primeiro acesso à API pode levar ~1 min (Render free)
 
 ## Pré-requisitos
@@ -82,10 +82,10 @@ App: http://localhost:5173
 ## Fluxo de teste sugerido
 
 1. Entrar como **organizador** → Gerenciar → Novo evento (estado + TMDb ou Ticketmaster) → salvar → criar sessão (pista ou mapa de assentos).
-2. Sair e entrar como **cliente1** → na navbar, estado **SP** → Explorar (hero + pôsteres) → evento → reservar quantidade ou assentos → Confirmar pagamento → Meus ingressos (QR).
-3. Entrar como **portaria** → selecionar evento → colar código ou ler QR → `valid`.
-4. Validar o mesmo código de novo → `already_used`.
-5. No checkout, **Recusar pagamento** em outro pedido → `failed`, sem ingressos.
+2. Sair e entrar como **cliente1** → na navbar, estado **SP** → Explorar (hero + pôsteres) → evento → **Comprar** → reservar quantidade ou assentos → checkout (Cartão / Boleto / PIX) → **Pagar** → Meus ingressos (QR).
+3. Entrar como **portaria** → selecionar evento → colar código, link de compartilhamento ou ler QR → Ingresso válido.
+4. Validar o mesmo código de novo → Já utilizado.
+5. No checkout, **Simular recusa** em outro pedido → Recusado, sem ingressos.
 6. **Cancelar pedido** (checkout pendente ou Meus ingressos após pagar) → estoque/assentos voltam.
 7. Trocar o estado na navbar para outro UF → lista vazia até cadastrar evento naquele estado.
 
@@ -107,15 +107,21 @@ App: http://localhost:5173
 
 ### Decisões minhas
 
-- Fluxo ponta a ponta primeiro (quantidade/pista + TMDb); mapa de assentos e Ticketmaster depois.
+- **CRUD** de eventos e sessões (o que o organizador cria, edita e exclui).
+- **Portaria:** validar ingresso na entrada (código/QR/link, um uso, evento certo).
+- **Mapa de assentos:** estados disponível / selecionado / indisponível; clique em ocupado não reserva; hold com TTL de 10 min e timer no checkout; legenda só com esses 3 estados.
+- **Filtro por UF** na navbar (Selecione = todos os eventos); evento passou a ter campo `state`.
+- CTA **Comprar** visível no card de cada sessão, sem scroll extra para achar a ação.
+- Horário padronizado em `HH:mm` (`formatSessionTime`).
+- Checkout com resumo (sessão, assentos, total) e forma de pagamento. PIX/cupom reais só se constassem no requisito original — ficou **simulado** (Cartão / Boleto / PIX no front, sem gravar cartão na API).
+- Fluxo ponta a ponta primeiro (quantidade/pista + TMDb); Ticketmaster depois.
 - Visual inspirado no Cinemark (hero do lançamento, pôsteres horizontais, cores preto/branco/vermelho), login no estilo AdminLTE e busca Enhanced Search.
 - Hover nos pôsteres com descrição, horários e vagas.
-- Filtro por estado (UF) na navbar, ao lado de Explorar.
 - Porta MySQL **3308** e usuários/senhas do seed.
 
 ### Com Cursor (implementação)
 
-Scaffolding React/Django, CRUD, Docker MySQL, JWT, pedidos, QR, portaria, TMDb, Ticketmaster, mapa de assentos, CSS/UI e o filtro por UF.
+Scaffolding React/Django, Docker MySQL, JWT, pedidos, QR, TMDb, Ticketmaster e CSS/UI.
 
 **Dificuldades:**
 
@@ -141,7 +147,7 @@ URLs:
 
 ## Limitações atuais
 
-- Pagamento 100% simulado (botões aprovar/recusar).
+- Pagamento 100% simulado (Cartão / Boleto / PIX no front; a API só aprova ou recusa, sem gravar cartão).
 - Hold de assento expira em 10 min se o checkout for abandonado.
 - Seed no Render: `python manage.py seed_events` no shell (não roda a cada restart).
 - Ticketmaster: chave em `backend/.env` e no Environment do Render (`TICKETMASTER_API_KEY`). Obtenha em https://developer.ticketmaster.com

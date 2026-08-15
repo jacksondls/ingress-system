@@ -8,7 +8,7 @@ import {
   Table,
 } from 'react-bootstrap'
 import * as sessionsApi from '../api/sessions'
-import { formatPrice, formatSessionDateTime } from '../format'
+import { formatPrice, formatQuantity, formatSessionDateTime } from '../format'
 import type { SeatingMode, Session, SessionInput } from '../types'
 
 type Props = {
@@ -164,7 +164,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
                 <td>{session.room || '—'}</td>
                 <td>{session.seatingMode === 'seats' ? 'Assentos' : 'Pista'}</td>
                 <td>{formatPrice(session.price)}</td>
-                <td>{session.capacity}</td>
+                <td>{formatQuantity(session.capacity)}</td>
                 {editable && (
                   <td>
                     <Stack direction="horizontal" gap={2}>
@@ -282,14 +282,14 @@ export function SessionManager({ eventId, editable = false }: Props) {
               <Form.Group className="mb-3" controlId="session-capacity">
                 <Form.Label>Capacidade</Form.Label>
                 <Form.Control
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
                   required
-                  value={form.capacity}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, capacity: e.target.value }))
-                  }
+                  value={form.capacity ? formatQuantity(Number(form.capacity)) : ''}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '')
+                    setForm((f) => ({ ...f, capacity: digits }))
+                  }}
                 />
               </Form.Group>
             )}
