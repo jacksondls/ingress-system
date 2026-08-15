@@ -320,12 +320,120 @@ body {
   background: linear-gradient(90deg, transparent, #555 15%, #fff 50%, #555 85%, transparent);
 }
 
+.session-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.session-card-room {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.session-card-time {
+  font-size: 1.1rem;
+}
+
+.session-card-price {
+  font-weight: 700;
+}
+
+.session-card-qty {
+  max-width: 90px;
+}
+
+.session-card-buy {
+  width: 100%;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .session-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .session-card-buy {
+    width: auto;
+    min-width: 160px;
+  }
+}
+
 .seat-btn {
   width: 34px;
   height: 32px;
-  padding: 0 !important;
-  border-radius: 8px 8px 4px 4px !important;
+  padding: 0;
+  border-radius: 8px 8px 4px 4px;
   font-size: 0.7rem;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.seat-btn:disabled {
+  opacity: 1;
+}
+
+.seat-btn.seat-available {
+  background: #1b7a3d;
+  border-color: #1b7a3d;
+}
+
+.seat-btn.seat-available:hover {
+  background: #219150;
+  border-color: #219150;
+}
+
+.seat-btn.seat-selected {
+  background: var(--cinemark);
+  border-color: var(--cinemark);
+}
+
+.seat-btn.seat-unavailable,
+.seat-btn.seat-unavailable:disabled,
+.seat-btn.seat-unavailable:hover,
+.seat-btn.seat-unavailable:active,
+.seat-btn.seat-unavailable:focus {
+  background: #6b1c1c;
+  border-color: #6b1c1c;
+  color: #f0c0c0;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.seat-legend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.seat-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.seat-dot.seat-available {
+  background: #1b7a3d;
+}
+
+.seat-dot.seat-selected {
+  background: var(--cinemark);
+}
+
+.seat-dot.seat-unavailable {
+  background: #6b1c1c;
 }
 
 .ticket-card {

@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap'
+import { Alert, Badge, Button, Col, Form, Row, Spinner } from 'react-bootstrap'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getEventById } from '../api/events'
 import { createOrder } from '../api/orders'
 import { listSeats, listSessionsByEvent } from '../api/sessions'
 import { useAuth } from '../auth/AuthContext'
 import { SeatMap } from '../components/SeatMap'
+import {
+  formatPrice,
+  formatSessionDate,
+  formatSessionDateTime,
+  formatSessionTime,
+} from '../format'
 import type { Event, Seat, Session } from '../types'
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
-}
-
-function formatPrice(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,19 +28,31 @@ export function EventDetailPage() {
   const [seats, setSeats] = useState<Seat[]>([])
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
   const [seatsLoading, setSeatsLoading] = useState(false)
+  const [seatTakenAlert, setSeatTakenAlert] = useState(false)
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
-    void Promise.all([getEventById(id), listSessionsByEvent(id)]).then(
-      ([ev, ses]) => {
+    setError(null)
+    void Promise.all([getEventById(id), listSessionsByEvent(id)])
+      .then(([ev, ses]) => {
         if (cancelled) return
         setEvent(ev)
         setSessions(ses)
-        setLoading(false)
-      },
-    )
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setEvent(null)
+        setSessions([])
+        setError(err instanceof Error ? err.message : 'Falha ao carregar evento')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -60,7 +67,11 @@ export function EventDetailPage() {
           const free = new Set(
             next.filter((s) => s.status === 'available').map((s) => s.id),
           )
-          setSelectedSeatIds((ids) => ids.filter((seatId) => free.has(seatId)))
+          setSelectedSeatIds((ids) => {
+            const kept = ids.filter((seatId) => free.has(seatId))
+            if (kept.length < ids.length) setSeatTakenAlert(true)
+            return kept
+          })
         })
         .catch(() => undefined)
     }, 4000)
@@ -78,6 +89,7 @@ export function EventDetailPage() {
     }
     setSeatSessionId(session.id)
     setSelectedSeatIds([])
+    setSeatTakenAlert(false)
     setSeatsLoading(true)
     setError(null)
     try {
@@ -131,6 +143,8 @@ export function EventDetailPage() {
   }
 
   function toggleSeat(seatId: string) {
+    const seat = seats.find((s) => s.id === seatId)
+    if (!seat || seat.status !== 'available') return
     setSelectedSeatIds((ids) =>
       ids.includes(seatId) ? ids.filter((id) => id !== seatId) : [...ids, seatId],
     )
@@ -189,73 +203,66 @@ export function EventDetailPage() {
       {sessions.length === 0 ? (
         <p className="text-muted">Nenhuma sessão.</p>
       ) : (
-        <div className="surface-card p-2 p-md-3">
-        <Table responsive hover size="sm" className="mb-0">
-          <thead>
-            <tr>
-              <th>Data/hora</th>
-              <th>Sala</th>
-              <th>Modo</th>
-              <th>Preço</th>
-              <th>Disponíveis</th>
-              <th>Qtd</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((session) => {
-              const isSeats = session.seatingMode === 'seats'
-              return (
-                <tr key={session.id}>
-                  <td>{formatDateTime(session.datetime)}</td>
-                  <td>{session.room || '—'}</td>
-                  <td>{isSeats ? 'Assentos' : 'Pista'}</td>
-                  <td>{formatPrice(session.price)}</td>
-                  <td>{session.available ?? session.capacity}</td>
-                  <td style={{ maxWidth: 90 }}>
-                    {isSeats ? (
-                      '—'
-                    ) : (
-                      <Form.Control
-                        type="number"
-                        min={1}
-                        max={session.available ?? session.capacity}
-                        value={quantities[session.id] ?? 1}
-                        onChange={(e) =>
-                          setQuantities((q) => ({
-                            ...q,
-                            [session.id]: Number(e.target.value),
-                          }))
-                        }
-                      />
-                    )}
-                  </td>
-                  <td>
-                    <Button
-                      size="sm"
-                      disabled={
-                        buyingId === session.id || (session.available ?? 0) < 1
+        <div className="d-flex flex-column gap-3">
+          {sessions.map((session) => {
+            const isSeats = session.seatingMode === 'seats'
+            const available = session.available ?? session.capacity
+            return (
+              <div key={session.id} className="session-card">
+                <div className="session-card-body">
+                  <p className="session-card-room mb-1">
+                    {session.room || 'Sala'}
+                  </p>
+                  <p className="session-card-time mb-1">
+                    <strong>{formatSessionTime(session.datetime)}</strong>
+                    {' · '}
+                    {formatSessionDate(session.datetime)}
+                  </p>
+                  <p className="text-muted small mb-1">{available} vagas</p>
+                  <p className="session-card-price mb-2 mb-md-0">
+                    {formatPrice(session.price)}
+                  </p>
+                  {!isSeats && (
+                    <Form.Control
+                      className="session-card-qty mt-2"
+                      type="number"
+                      min={1}
+                      max={available}
+                      value={quantities[session.id] ?? 1}
+                      onChange={(e) =>
+                        setQuantities((q) => ({
+                          ...q,
+                          [session.id]: Number(e.target.value),
+                        }))
                       }
-                      onClick={() =>
-                        void (isSeats ? openSeatMap(session) : buyQuantity(session))
-                      }
-                    >
-                      {isSeats ? 'Escolher assentos' : buyingId === session.id ? '...' : 'Reservar'}
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </Table>
+                    />
+                  )}
+                </div>
+                <Button
+                  className="session-card-buy"
+                  disabled={buyingId === session.id || available < 1}
+                  onClick={() =>
+                    void (isSeats ? openSeatMap(session) : buyQuantity(session))
+                  }
+                >
+                  {buyingId === session.id ? '...' : 'Comprar'}
+                </Button>
+              </div>
+            )
+          })}
         </div>
       )}
 
       {seatSessionId && (
         <div className="surface-card p-3 mt-4">
           <h3 className="h6">
-            Mapa — {seatSession ? formatDateTime(seatSession.datetime) : ''}
+            Mapa — {seatSession ? formatSessionDateTime(seatSession.datetime) : ''}
           </h3>
+          {seatTakenAlert && (
+            <Alert variant="warning">
+              Assento acabou de ser reservado por outro usuário.
+            </Alert>
+          )}
           {seatsLoading ? (
             <Spinner size="sm" />
           ) : (
@@ -277,6 +284,7 @@ export function EventDetailPage() {
                   onClick={() => {
                     setSeatSessionId(null)
                     setSelectedSeatIds([])
+                    setSeatTakenAlert(false)
                   }}
                 >
                   Cancelar

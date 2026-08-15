@@ -1,4 +1,3 @@
-import { Button } from 'react-bootstrap'
 import type { Seat } from '../types'
 
 type Props = {
@@ -25,34 +24,42 @@ export function SeatMap({ seats, selectedIds, onToggle }: Props) {
               .sort((a, b) => a.number - b.number)
               .map((seat) => {
                 const selected = selectedIds.includes(seat.id)
-                const taken = seat.status !== 'available'
+                const unavailable = seat.status !== 'available'
+                const state = unavailable
+                  ? 'unavailable'
+                  : selected
+                    ? 'selected'
+                    : 'available'
                 return (
-                  <Button
+                  <button
                     key={seat.id}
-                    size="sm"
-                    className="seat-btn"
-                    disabled={taken}
-                    variant={
-                      taken
-                        ? 'secondary'
-                        : selected
-                          ? 'primary'
-                          : 'outline-primary'
-                    }
-                    onClick={() => onToggle(seat.id)}
+                    type="button"
+                    className={`seat-btn seat-${state}`}
+                    disabled={unavailable}
+                    onClick={() => {
+                      if (unavailable) return
+                      onToggle(seat.id)
+                    }}
                     title={seat.label}
+                    aria-label={seat.label}
                   >
                     {seat.number}
-                  </Button>
+                  </button>
                 )
               })}
           </div>
         ))}
       </div>
-      <div className="d-flex gap-3 justify-content-center mt-3 small text-muted">
-        <span>Livre</span>
-        <span>Selecionado</span>
-        <span>Indisponível</span>
+      <div className="seat-legend">
+        <span>
+          <i className="seat-dot seat-available" /> Disponível
+        </span>
+        <span>
+          <i className="seat-dot seat-selected" /> Selecionado
+        </span>
+        <span>
+          <i className="seat-dot seat-unavailable" /> Indisponível
+        </span>
       </div>
     </div>
   )

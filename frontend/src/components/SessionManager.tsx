@@ -7,6 +7,7 @@ import {
   Table,
 } from 'react-bootstrap'
 import * as sessionsApi from '../api/sessions'
+import { formatPrice, formatSessionDateTime } from '../format'
 import type { SeatingMode, Session, SessionInput } from '../types'
 
 type Props = {
@@ -22,17 +23,6 @@ const emptyForm = {
   seatingMode: 'quantity' as SeatingMode,
   seatRows: '5',
   seatCols: '8',
-}
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
-}
-
-function formatPrice(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export function SessionManager({ eventId, editable = false }: Props) {
@@ -160,7 +150,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
           <tbody>
             {sessions.map((session) => (
               <tr key={session.id}>
-                <td>{formatDateTime(session.datetime)}</td>
+                <td>{formatSessionDateTime(session.datetime)}</td>
                 <td>{session.room || '—'}</td>
                 <td>{session.seatingMode === 'seats' ? 'Assentos' : 'Pista'}</td>
                 <td>{formatPrice(session.price)}</td>

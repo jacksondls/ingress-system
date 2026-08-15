@@ -54,13 +54,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuth()
+      window.dispatchEvent(new Event('ingresso-logout'))
+    }
     let message = `HTTP ${response.status}`
     try {
       const data = await response.json()
       message = data.detail || JSON.stringify(data)
     } catch {
-      const text = await response.text()
-      if (text) message = text
+      /* body already consumed or not JSON */
     }
     throw new Error(message)
   }

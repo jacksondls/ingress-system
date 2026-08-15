@@ -1,9 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from accounts.models import Profile
-from events.models import Event, Seat, Session
+from events.models import Event, Order, Seat, Session
 from events.views import generate_seats_for_session
 
 
@@ -144,3 +146,13 @@ class OrderAndGateTests(APITestCase):
             format='json',
         )
         self.assertEqual(after.data['result'], 'invalid')
+
+    def test_expired_hold_releases_seat(self):
+        created, seat = self._hold_seat(self.client1)
+        Order.objects.filter(pk=created.data['id']).update(
+            created_at=timezone.now() - timedelta(minutes=11),
+        )
+        second, _ = self._hold_seat(self.client2, seat)
+        self.assertEqual(second.status_code, 201)
+        seat.refresh_from_db()
+        self.assertEqual(seat.status, Seat.Status.HELD)

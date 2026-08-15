@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Spinner } from 'react-bootstrap'
+import { Alert, Spinner } from 'react-bootstrap'
 import { listEvents } from '../api/events'
 import { EventHero } from '../components/EventHero'
 import { EventList } from '../components/EventList'
@@ -36,16 +36,25 @@ export function ExplorePage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    void listEvents({ query, type, state }).then((data) => {
-      if (!cancelled) {
-        setEvents(data)
-        setLoading(false)
-      }
-    })
+    setError(null)
+    void listEvents({ query, type, state })
+      .then((data) => {
+        if (!cancelled) setEvents(data)
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setEvents([])
+          setError(e instanceof Error ? e.message : 'Falha ao carregar eventos')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -79,6 +88,7 @@ export function ExplorePage() {
         onSortByChange={setSortBy}
         onSortOrderChange={setSortOrder}
       />
+      {error && <Alert variant="danger">{error}</Alert>}
       {loading ? (
         <div className="page-spinner">
           <Spinner animation="border" role="status" />

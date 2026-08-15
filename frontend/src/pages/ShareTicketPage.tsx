@@ -3,6 +3,7 @@ import { Alert, Spinner } from 'react-bootstrap'
 import { QRCodeSVG } from 'qrcode.react'
 import { useParams } from 'react-router-dom'
 import { getSharedTicket, type Ticket } from '../api/orders'
+import { formatSessionDateTime } from '../format'
 
 export function ShareTicketPage() {
   const { token } = useParams<{ token: string }>()
@@ -35,7 +36,7 @@ export function ShareTicketPage() {
       <p className="eyebrow mb-2">Ingresso compartilhado</p>
       <h1 className="h4">{ticket.eventTitle}</h1>
       <p className="text-muted mb-1">{ticket.venue}</p>
-      <p>{new Date(ticket.sessionDatetime).toLocaleString('pt-BR')}</p>
+      <p>{formatSessionDateTime(ticket.sessionDatetime)}</p>
       <div className="d-flex justify-content-center my-3">
         <QRCodeSVG value={ticket.code} size={180} />
       </div>

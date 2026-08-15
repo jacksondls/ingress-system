@@ -15,13 +15,17 @@ export function GatePage() {
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [eventsLoading, setEventsLoading] = useState(true)
   const scannerRef = useRef<Html5Qrcode | null>(null)
 
   useEffect(() => {
-    void listEvents().then((data) => {
-      setEvents(data)
-      if (data[0]) setEventId(data[0].id)
-    })
+    void listEvents()
+      .then((data) => {
+        setEvents(data)
+        if (data[0]) setEventId(data[0].id)
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Falha ao carregar eventos'))
+      .finally(() => setEventsLoading(false))
     return () => {
       void scannerRef.current?.stop().catch(() => undefined)
     }
@@ -53,19 +57,27 @@ export function GatePage() {
     const scanner = new Html5Qrcode('gate-qr-reader')
     scannerRef.current = scanner
     setScanning(true)
-    await scanner.start(
-      { facingMode: 'environment' },
-      { fps: 8, qrbox: 220 },
-      (decoded) => {
-        setCode(decoded)
-        void validate(decoded)
-        void scanner.stop().then(() => {
-          scannerRef.current = null
-          setScanning(false)
-        })
-      },
-      () => undefined,
-    )
+    try {
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 8, qrbox: 220 },
+        (decoded) => {
+          setCode(decoded)
+          void validate(decoded)
+          void scanner.stop().then(() => {
+            scannerRef.current = null
+            setScanning(false)
+          })
+        },
+        () => undefined,
+      )
+    } catch (err) {
+      scannerRef.current = null
+      setScanning(false)
+      setError(
+        err instanceof Error ? err.message : 'Não foi possível abrir a câmera',
+      )
+    }
   }
 
   const variant =
@@ -95,8 +107,10 @@ export function GatePage() {
       <div className="surface-card p-4 mb-3">
       <Form.Group className="mb-3">
         <Form.Label>Evento</Form.Label>
-        {events.length === 0 ? (
+        {eventsLoading ? (
           <Spinner size="sm" />
+        ) : events.length === 0 ? (
+          <p className="text-muted small mb-0">Nenhum evento.</p>
         ) : (
           <Form.Select
             value={eventId}

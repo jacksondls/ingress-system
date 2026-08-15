@@ -2,7 +2,7 @@ import { Button, Container, Form, Nav, Navbar } from 'react-bootstrap'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useStateFilter } from '../location/StateFilter'
-import { STATES, type StateUF } from '../location/states'
+import { STATES } from '../location/states'
 
 const roleLabel: Record<string, string> = {
   organizer: 'Organizador',
@@ -33,8 +33,9 @@ export function Layout() {
                 className="state-select"
                 aria-label="Estado"
                 value={state}
-                onChange={(e) => setState(e.target.value as StateUF)}
+                onChange={(e) => setState(e.target.value as typeof state)}
               >
+                <option value="">Selecione</option>
                 {STATES.map((item) => (
                   <option key={item.uf} value={item.uf}>
                     {item.uf} — {item.name}

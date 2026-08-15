@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -18,6 +19,12 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredUser())
+
+  useEffect(() => {
+    const onLogout = () => setUser(null)
+    window.addEventListener('ingresso-logout', onLogout)
+    return () => window.removeEventListener('ingresso-logout', onLogout)
+  }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({

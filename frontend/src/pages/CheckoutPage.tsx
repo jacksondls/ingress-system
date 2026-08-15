@@ -3,6 +3,12 @@ import { Alert, Button, Spinner, Stack } from 'react-bootstrap'
 import { Link, useParams } from 'react-router-dom'
 import { cancelOrder, payOrder, type Order } from '../api/orders'
 import { request } from '../api/client'
+import {
+  formatCountdown,
+  formatPrice,
+  formatSessionDateTime,
+  HOLD_MS,
+} from '../format'
 
 export function CheckoutPage() {
   const { orderId } = useParams<{ orderId: string }>()
@@ -10,6 +16,7 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
     if (!orderId) return
@@ -18,6 +25,12 @@ export function CheckoutPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoading(false))
   }, [orderId])
+
+  useEffect(() => {
+    if (order?.status !== 'pending') return
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [order?.status])
 
   async function pay(approve: boolean) {
     if (!orderId) return
@@ -55,50 +68,72 @@ export function CheckoutPage() {
   }
   if (!order) return <Alert variant="danger">{error || 'Pedido não encontrado'}</Alert>
 
+  const remaining = Math.max(
+    0,
+    new Date(order.createdAt).getTime() + HOLD_MS - now,
+  )
+  const expired = order.status === 'pending' && remaining === 0
+  const seatLabels = (order.seats ?? [])
+    .map((s) => s.label)
+    .filter(Boolean)
+    .join(', ')
+
   return (
     <div className="auth-wrap">
       <h1 className="h3 mb-3">Checkout</h1>
       {error && <Alert variant="danger">{error}</Alert>}
       <div className="surface-card p-4 mb-3">
-      <p>
-        <strong>Sessão:</strong>{' '}
-        {new Date(order.session.datetime).toLocaleString('pt-BR')}
-      </p>
-      <p>
-        <strong>Quantidade:</strong> {order.quantity}
-      </p>
-      <p>
-        <strong>Total:</strong>{' '}
-        {(order.session.price * order.quantity).toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        })}
-      </p>
-      <p className="mb-0">
-        <strong>Status:</strong> {order.status}
-      </p>
+        <p>
+          <strong>Sessão:</strong> {formatSessionDateTime(order.session.datetime)}
+        </p>
+        {seatLabels ? (
+          <p>
+            <strong>Assentos:</strong> {seatLabels}
+          </p>
+        ) : null}
+        <p>
+          <strong>Quantidade:</strong> {order.quantity}
+        </p>
+        <p>
+          <strong>Total:</strong> {formatPrice(order.session.price * order.quantity)}
+        </p>
+        <p className="mb-0">
+          <strong>Status:</strong> {order.status}
+        </p>
       </div>
 
       {order.status === 'pending' && (
-        <Stack direction="horizontal" gap={2}>
-          <Button disabled={busy} onClick={() => void pay(true)}>
-            Confirmar pagamento
-          </Button>
-          <Button
-            variant="outline-danger"
-            disabled={busy}
-            onClick={() => void pay(false)}
-          >
-            Recusar pagamento
-          </Button>
-          <Button
-            variant="outline-secondary"
-            disabled={busy}
-            onClick={() => void cancel()}
-          >
-            Cancelar pedido
-          </Button>
-        </Stack>
+        <>
+          <p className="mb-2">Pagamento simulado</p>
+          {expired ? (
+            <Alert variant="warning">
+              Reserva expirada. Os assentos foram liberados.
+            </Alert>
+          ) : (
+            <p className="text-muted mb-3">
+              Tempo restante: <strong>{formatCountdown(remaining)}</strong>
+            </p>
+          )}
+          <Stack direction="horizontal" gap={2} className="flex-wrap">
+            <Button disabled={busy || expired} onClick={() => void pay(true)}>
+              Confirmar pagamento
+            </Button>
+            <Button
+              variant="outline-danger"
+              disabled={busy || expired}
+              onClick={() => void pay(false)}
+            >
+              Recusar pagamento
+            </Button>
+            <Button
+              variant="outline-secondary"
+              disabled={busy || expired}
+              onClick={() => void cancel()}
+            >
+              Cancelar pedido
+            </Button>
+          </Stack>
+        </>
       )}
 
       {order.status === 'paid' && (

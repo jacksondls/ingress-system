@@ -7,23 +7,25 @@ import {
 } from 'react'
 import { STATES, type StateUF } from './states'
 
-const STORAGE_KEY = 'ingresso_state'
+const STORAGE_KEY = 'ingresso_state_v2'
 
-function readStored(): StateUF {
+export type StateFilterUF = StateUF | ''
+
+function readStored(): StateFilterUF {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw && STATES.some((s) => s.uf === raw)) return raw as StateUF
-  return 'SP'
+  return ''
 }
 
 type StateFilterValue = {
-  state: StateUF
-  setState: (uf: StateUF) => void
+  state: StateFilterUF
+  setState: (uf: StateFilterUF) => void
 }
 
 const StateFilterContext = createContext<StateFilterValue | null>(null)
 
 export function StateFilterProvider({ children }: { children: ReactNode }) {
-  const [state, setStateRaw] = useState<StateUF>(readStored)
+  const [state, setStateRaw] = useState<StateFilterUF>(readStored)
 
   const value = useMemo<StateFilterValue>(
     () => ({

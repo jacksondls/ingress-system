@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Session } from '../types'
+import type { Seat, Session } from '../types'
 
 export type Order = {
   id: string
@@ -7,6 +7,7 @@ export type Order = {
   status: 'pending' | 'paid' | 'failed' | 'cancelled'
   session: Session & { available?: number }
   tickets?: Ticket[]
+  seats?: Seat[]
   createdAt: string
 }
 

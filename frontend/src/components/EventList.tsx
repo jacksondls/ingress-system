@@ -1,25 +1,15 @@
 import { Link } from 'react-router-dom'
+import { formatPrice, formatSessionDateTime } from '../format'
 import type { Event, Session } from '../types'
 
 type Props = {
   events: Event[]
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
-}
-
-function formatPrice(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 function sessionLine(session: Session) {
   const room = session.room ? ` · ${session.room}` : ''
   const available = session.available ?? session.capacity
-  return `${formatDateTime(session.datetime)}${room} · ${formatPrice(session.price)} · ${available} vagas`
+  return `${formatSessionDateTime(session.datetime)}${room} · ${formatPrice(session.price)} · ${available} vagas`
 }
 
 export function EventList({ events }: Props) {
@@ -68,7 +58,7 @@ export function EventList({ events }: Props) {
               <p className="event-poster-venue">{event.venue}</p>
               {sessions[0] && (
                 <p className="event-poster-meta">
-                  {formatDateTime(sessions[0].datetime)} ·{' '}
+                  {formatSessionDateTime(sessions[0].datetime)} ·{' '}
                   {formatPrice(sessions[0].price)}
                 </p>
               )}

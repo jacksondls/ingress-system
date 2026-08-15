@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -28,7 +30,9 @@ from .serializers import (
     TicketSerializer,
 )
 from .ticketmaster import search_attractions
-from .tmdb import search_movies
+from .tmdb import TmdbConfigError, search_movies
+
+HOLD_MINUTES = 10
 
 
 def generate_seats_for_session(session: Session) -> None:
@@ -47,6 +51,20 @@ def release_held_seats(order: Order) -> None:
         status=Seat.Status.AVAILABLE,
         held_order=None,
     )
+
+
+def expire_stale_holds() -> None:
+    cutoff = timezone.now() - timedelta(minutes=HOLD_MINUTES)
+    stale = list(
+        Order.objects.select_for_update().filter(
+            status=Order.Status.PENDING,
+            created_at__lt=cutoff,
+        )
+    )
+    for order in stale:
+        release_held_seats(order)
+        order.status = Order.Status.CANCELLED
+        order.save(update_fields=['status'])
 
 
 def restore_sold_seats(order: Order) -> None:
@@ -136,6 +154,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         quantity = request.data.get('quantity')
 
         with transaction.atomic():
+            expire_stale_holds()
             locked = Session.objects.select_for_update().get(pk=session.pk)
 
             if locked.seating_mode == Session.SeatingMode.SEATS:
@@ -199,25 +218,33 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='pay')
     def pay(self, request, pk=None):
-        order = self.get_object()
-        if order.status != Order.Status.PENDING:
-            return Response(
-                {'detail': 'Pedido não está pendente.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         pay_ser = PayOrderSerializer(data=request.data)
         pay_ser.is_valid(raise_exception=True)
         approve = pay_ser.validated_data['approve']
 
-        if not approve:
-            with transaction.atomic():
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(
+                    pk=pk,
+                    client=request.user,
+                )
+            except Order.DoesNotExist:
+                return Response(
+                    {'detail': 'Não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if order.status != Order.Status.PENDING:
+                return Response(
+                    {'detail': 'Pedido não está pendente.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not approve:
                 release_held_seats(order)
                 order.status = Order.Status.FAILED
                 order.save(update_fields=['status'])
-            return Response(OrderSerializer(order).data)
+                return Response(OrderSerializer(order).data)
 
-        with transaction.atomic():
             locked = Session.objects.select_for_update().get(pk=order.session_id)
 
             if locked.seating_mode == Session.SeatingMode.SEATS:
@@ -278,14 +305,23 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel(self, request, pk=None):
-        order = self.get_object()
-        if order.status not in (Order.Status.PENDING, Order.Status.PAID):
-            return Response(
-                {'detail': 'Pedido não pode ser cancelado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(
+                    pk=pk,
+                    client=request.user,
+                )
+            except Order.DoesNotExist:
+                return Response(
+                    {'detail': 'Não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if order.status not in (Order.Status.PENDING, Order.Status.PAID):
+                return Response(
+                    {'detail': 'Pedido não pode ser cancelado.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             locked = Session.objects.select_for_update().get(pk=order.session_id)
             if order.status == Order.Status.PENDING:
                 release_held_seats(order)
@@ -358,51 +394,52 @@ class GateValidateView(APIView):
         code = ser.validated_data['code'].strip()
         event_id = ser.validated_data['event_id']
 
-        try:
-            ticket = Ticket.objects.select_related(
-                'order',
-                'order__session',
-                'order__session__event',
-                'seat',
-            ).get(code=code)
-        except Ticket.DoesNotExist:
-            return Response({'result': 'invalid', 'detail': 'Código inválido.'})
+        with transaction.atomic():
+            try:
+                ticket = Ticket.objects.select_for_update().select_related(
+                    'order',
+                    'order__session',
+                    'order__session__event',
+                    'seat',
+                ).get(code=code)
+            except Ticket.DoesNotExist:
+                return Response({'result': 'invalid', 'detail': 'Código inválido.'})
 
-        if not _verify_ticket_code(code):
-            return Response({'result': 'invalid', 'detail': 'Código forjado.'})
+            if not _verify_ticket_code(code):
+                return Response({'result': 'invalid', 'detail': 'Código forjado.'})
 
-        event = ticket.order.session.event
-        if str(event.id) != str(event_id):
+            event = ticket.order.session.event
+            if str(event.id) != str(event_id):
+                return Response(
+                    {
+                        'result': 'wrong_event',
+                        'detail': 'Ingresso de outro evento.',
+                        'eventTitle': event.title,
+                    }
+                )
+
+            if ticket.order.status != Order.Status.PAID:
+                return Response({'result': 'invalid', 'detail': 'Pedido não pago.'})
+
+            if ticket.status == Ticket.Status.USED:
+                return Response(
+                    {
+                        'result': 'already_used',
+                        'detail': 'Ingresso já utilizado.',
+                        'usedAt': ticket.used_at,
+                    }
+                )
+
+            ticket.status = Ticket.Status.USED
+            ticket.used_at = timezone.now()
+            ticket.save(update_fields=['status', 'used_at'])
             return Response(
                 {
-                    'result': 'wrong_event',
-                    'detail': 'Ingresso de outro evento.',
-                    'eventTitle': event.title,
+                    'result': 'valid',
+                    'detail': 'Ingresso válido.',
+                    'ticket': TicketSerializer(ticket).data,
                 }
             )
-
-        if ticket.order.status != Order.Status.PAID:
-            return Response({'result': 'invalid', 'detail': 'Pedido não pago.'})
-
-        if ticket.status == Ticket.Status.USED:
-            return Response(
-                {
-                    'result': 'already_used',
-                    'detail': 'Ingresso já utilizado.',
-                    'usedAt': ticket.used_at,
-                }
-            )
-
-        ticket.status = Ticket.Status.USED
-        ticket.used_at = timezone.now()
-        ticket.save(update_fields=['status', 'used_at'])
-        return Response(
-            {
-                'result': 'valid',
-                'detail': 'Ingresso válido.',
-                'ticket': TicketSerializer(ticket).data,
-            }
-        )
 
 
 def _verify_ticket_code(code: str) -> bool:
@@ -428,9 +465,14 @@ class TmdbSearchView(APIView):
             return Response({'results': []})
         try:
             results = search_movies(query)
-        except Exception as exc:
+        except TmdbConfigError:
             return Response(
-                {'detail': str(exc)},
+                {'detail': 'TMDB_API_KEY não configurada no servidor.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception:
+            return Response(
+                {'detail': 'Falha ao buscar na API externa.'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response({'results': results})
@@ -445,9 +487,9 @@ class TicketmasterSearchView(APIView):
             return Response({'results': []})
         try:
             results = search_attractions(query)
-        except Exception as exc:
+        except Exception:
             return Response(
-                {'detail': str(exc)},
+                {'detail': 'Falha ao buscar na API externa.'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response({'results': results})

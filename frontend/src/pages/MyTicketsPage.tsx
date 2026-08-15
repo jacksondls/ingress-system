@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Spinner } from 'react-bootstrap'
 import { QRCodeSVG } from 'qrcode.react'
 import { cancelOrder, listMyTickets, type Ticket } from '../api/orders'
+import { formatSessionDateTime } from '../format'
 
 export function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -56,7 +57,7 @@ export function MyTicketsPage() {
                 <h2 className="h5">{ticket.eventTitle}</h2>
                 <p className="mb-1 text-muted">{ticket.venue}</p>
                 <p className="mb-2">
-                  {new Date(ticket.sessionDatetime).toLocaleString('pt-BR')}
+                  {formatSessionDateTime(ticket.sessionDatetime)}
                   {ticket.seatLabel ? ` · Assento ${ticket.seatLabel}` : ''}
                 </p>
                 <p className="small mb-2">
