@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
+  Alert,
   Button,
   Form,
   Modal,
@@ -33,6 +34,7 @@ export function SessionManager({ eventId, editable = false }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [validated, setValidated] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -114,9 +116,15 @@ export function SessionManager({ eventId, editable = false }: Props) {
 
   async function confirmDelete() {
     if (!deleteId) return
-    await sessionsApi.deleteSession(deleteId)
-    setDeleteId(null)
-    await load()
+    setError(null)
+    try {
+      await sessionsApi.deleteSession(deleteId)
+      setDeleteId(null)
+      await load()
+    } catch (err) {
+      setDeleteId(null)
+      setError(err instanceof Error ? err.message : 'Falha ao excluir sessão')
+    }
   }
 
   if (loading) return <p className="text-muted">Carregando sessões...</p>
@@ -131,6 +139,8 @@ export function SessionManager({ eventId, editable = false }: Props) {
           </Button>
         )}
       </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
 
       {sessions.length === 0 ? (
         <p className="text-muted">Nenhuma sessão cadastrada.</p>

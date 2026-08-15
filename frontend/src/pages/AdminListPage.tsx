@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Modal, Stack, Table } from 'react-bootstrap'
+import { Alert, Badge, Button, Modal, Stack, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import { deleteEvent, listEvents, type EventWithCount } from '../api/events'
 
@@ -7,6 +7,7 @@ export function AdminListPage() {
   const [events, setEvents] = useState<EventWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -21,9 +22,15 @@ export function AdminListPage() {
 
   async function confirmDelete() {
     if (!deleteId) return
-    await deleteEvent(deleteId)
-    setDeleteId(null)
-    await load()
+    setError(null)
+    try {
+      await deleteEvent(deleteId)
+      setDeleteId(null)
+      await load()
+    } catch (err) {
+      setDeleteId(null)
+      setError(err instanceof Error ? err.message : 'Falha ao excluir')
+    }
   }
 
   return (
@@ -37,6 +44,8 @@ export function AdminListPage() {
           Novo evento
         </Link>
       </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
 
       {loading ? (
         <p className="text-muted">Carregando...</p>

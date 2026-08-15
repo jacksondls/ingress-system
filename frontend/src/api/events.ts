@@ -34,22 +34,13 @@ export async function createEvent(input: EventInput): Promise<Event> {
 export async function updateEvent(
   id: string,
   input: EventInput,
-): Promise<Event | null> {
-  try {
-    return await request<Event>(`/events/${id}/`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    })
-  } catch {
-    return null
-  }
+): Promise<Event> {
+  return request<Event>(`/events/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
 }
 
-export async function deleteEvent(id: string): Promise<boolean> {
-  try {
-    await request<void>(`/events/${id}/`, { method: 'DELETE' })
-    return true
-  } catch {
-    return false
-  }
+export async function deleteEvent(id: string): Promise<void> {
+  await request<void>(`/events/${id}/`, { method: 'DELETE' })
 }

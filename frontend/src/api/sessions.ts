@@ -30,11 +30,6 @@ export async function updateSession(
   }
 }
 
-export async function deleteSession(id: string): Promise<boolean> {
-  try {
-    await request<void>(`/sessions/${id}/`, { method: 'DELETE' })
-    return true
-  } catch {
-    return false
-  }
+export async function deleteSession(id: string): Promise<void> {
+  await request<void>(`/sessions/${id}/`, { method: 'DELETE' })
 }

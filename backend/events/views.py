@@ -109,6 +109,10 @@ class EventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(organizer=self.request.user)
 
+    def perform_destroy(self, instance):
+        Order.objects.filter(session__event=instance).delete()
+        instance.delete()
+
     @action(detail=True, methods=['get'], url_path='sessions')
     def sessions(self, request, pk=None):
         event = self.get_object()
@@ -127,6 +131,10 @@ class SessionViewSet(viewsets.ModelViewSet):
         session = serializer.save()
         if session.seating_mode == Session.SeatingMode.SEATS:
             generate_seats_for_session(session)
+
+    def perform_destroy(self, instance):
+        instance.orders.all().delete()
+        instance.delete()
 
     @action(detail=True, methods=['get'], url_path='seats')
     def seats(self, request, pk=None):
