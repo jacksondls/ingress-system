@@ -29,7 +29,7 @@ from .serializers import (
     SessionSerializer,
     TicketSerializer,
 )
-from .ticketmaster import search_attractions
+from .ticketmaster import TicketmasterConfigError, search_attractions
 from .tmdb import TmdbConfigError, search_movies
 
 HOLD_MINUTES = 10
@@ -495,6 +495,11 @@ class TicketmasterSearchView(APIView):
             return Response({'results': []})
         try:
             results = search_attractions(query)
+        except TicketmasterConfigError:
+            return Response(
+                {'detail': 'TICKETMASTER_API_KEY não configurada no servidor.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception:
             return Response(
                 {'detail': 'Falha ao buscar na API externa.'},

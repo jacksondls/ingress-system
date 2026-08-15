@@ -131,7 +131,7 @@ Seed de usuários, escolha das portas, critérios da portaria (`valid` / `alread
 Front na [Vercel](https://vercel.com) e API no [Render](https://render.com) (web free + Postgres free; MySQL local no Docker). Blueprint: [`render.yaml`](render.yaml).
 
 1. **Render** — Blueprint já aplicado (`ingresso-api` + `ingresso-db`, plano Free; Postgres expira em 30 dias).
-   Busca TMDb: no dashboard, serviço `ingresso-api` → Environment → `TMDB_API_KEY` (mesmo valor do `backend/.env` local). Não versionar a chave (`sync: false` no blueprint).
+   Busca TMDb / Ticketmaster: no dashboard, serviço `ingresso-api` → Environment → `TMDB_API_KEY` e `TICKETMASTER_API_KEY` (mesmo valor do `backend/.env` local). Não versionar as chaves (`sync: false` no blueprint).
 2. **Vercel** — root `frontend`, env `VITE_API_URL=https://ingresso-api-e0vz.onrender.com/api`.
 
 URLs:
@@ -144,7 +144,7 @@ URLs:
 - Pagamento 100% simulado (botões aprovar/recusar).
 - Hold de assento expira em 10 min se o checkout for abandonado.
 - Seed no Render: `python manage.py seed_events` no shell (não roda a cada restart).
-- Ticketmaster exige `TICKETMASTER_API_KEY` no `.env`.
+- Ticketmaster: chave em `backend/.env` e no Environment do Render (`TICKETMASTER_API_KEY`). Obtenha em https://developer.ticketmaster.com
 - Eventos seed só em SP; outros estados só aparecem depois de cadastro.
 
 ## Docs extras

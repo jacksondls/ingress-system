@@ -4,11 +4,15 @@ from django.conf import settings
 TM_BASE = 'https://app.ticketmaster.com/discovery/v2'
 
 
+class TicketmasterConfigError(Exception):
+    pass
+
+
 def search_attractions(query: str, country_code: str = 'BR'):
     api_key = (getattr(settings, 'TICKETMASTER_API_KEY', None) or '').strip()
     if not api_key:
-        raise RuntimeError(
-            'TICKETMASTER_API_KEY não configurada. Defina no arquivo backend/.env'
+        raise TicketmasterConfigError(
+            'TICKETMASTER_API_KEY não configurada no servidor.'
         )
 
     response = requests.get(
